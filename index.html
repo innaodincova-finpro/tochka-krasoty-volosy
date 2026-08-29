@@ -1,0 +1,3118 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Точка красоты. Волосы</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4E7A9E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Точка. Волосы">
+<meta name="application-name" content="Точка красоты. Волосы">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+:root{
+  --ground:#F4F7FA; --card:#FFFFFF; --panel:#4E7A9E; --ink:#1F2E3C; --mut:#6B8093;
+  --line:#E1E8EF; --soft:#EDF2F6; --ok:#4B7F62; --stop:#2F6091; --warn:#B08347;
+  --tint:#EBF2F8; --tintline:#CBDCEA;
+  --on-stop:#FFFFFF; --on-ok:#FFFFFF;
+  /* шапка: цвета текста и кнопок задаются отдельно, чтобы её можно было
+     сделать как тёмной, так и светлой, не трогая остальной экран */
+  --p-ink:#FFFFFF; --p-mut:#C3D8E6; --p-sub:#DDEAF3; --p-dim:#A8C2D4;
+  --p-btn:#5D8AAE; --p-btn-ink:#EFF6FB; --p-line:transparent; --p-bad:#FFD3C9;
+}
+html[data-theme="dark"]{
+  --ground:#101820; --card:#182029; --panel:#2C4A63; --ink:#E6EDF3; --mut:#8FA3B4;
+  --line:#26313C; --soft:#1D2731; --ok:#6E9F82; --stop:#6FA3D2; --warn:#D2A468;
+  --tint:#1A2836; --tintline:#2E4560;
+  --on-stop:#0D1A26; --on-ok:#0D1A26;
+  --p-ink:#EAF2F8; --p-mut:#A8C2D4; --p-sub:#CBDDEA; --p-dim:#8AA5BB;
+  --p-btn:#3A5C79; --p-btn-ink:#DCEAF4; --p-line:transparent; --p-bad:#F0A79B;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-text-size-adjust:100%; overscroll-behavior-y:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--stop)}
+
+.app{display:flex;flex-direction:column;height:100dvh;min-height:100dvh}
+
+/* ---------- шапка ---------- */
+.top{background:var(--panel);color:var(--p-ink);flex:none;
+     border-bottom:1px solid var(--p-line);
+     padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
+.top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.top-name{font-size:11.5px;color:var(--p-mut);letter-spacing:.04em}
+.top-title{font-size:19px;font-weight:600;margin-top:3px;line-height:1.2}
+.top-sub{font-size:12.5px;color:var(--p-sub);margin-top:6px}
+.top-acts{display:flex;gap:6px;flex:none}
+.tbtn{background:var(--p-btn);border:none;color:var(--p-btn-ink);border-radius:8px;
+      min-width:38px;height:38px;display:flex;align-items:center;justify-content:center}
+.tbtn:disabled{opacity:.35}
+.saved{font-size:11px;color:var(--p-dim);margin-top:8px}
+.saved.bad{color:var(--p-bad);font-weight:600}
+.toast.bad{background:#8C4038}
+
+/* ---------- экран ---------- */
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+        padding:14px 14px 26px;display:flex;flex-direction:column;gap:14px}
+.sec-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);margin-bottom:8px}
+.muted{color:var(--mut);font-size:12px;margin-top:2px}
+.empty{color:var(--mut);font-size:13px;text-align:center;padding:26px 10px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.list{display:flex;flex-direction:column;gap:8px}
+
+/* ---------- полоса про ярлык ---------- */
+.addbar{background:var(--tint);border:1px solid var(--tintline);border-radius:12px;padding:11px 12px;
+        display:grid;grid-template-columns:38px 1fr 26px;gap:11px;align-items:center}
+.ab-ic{width:38px;height:38px;border-radius:10px;background:var(--panel);
+       display:flex;flex-direction:column;align-items:center;justify-content:center;
+       color:var(--p-ink);font-size:6px;font-weight:700;line-height:1.2;letter-spacing:.02em}
+.ab-t{font-size:13px;font-weight:600}
+.ab-x{background:none;border:none;color:var(--mut);font-size:17px;height:38px}
+
+/* ---------- карточка «сейчас» ---------- */
+.hero{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.badge{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--stop)}
+.badge.ok{color:var(--ok)}
+.badge.mut{color:var(--mut)}
+.h-who{font-size:21px;font-weight:600;margin-top:8px;line-height:1.15}
+.h-what{font-size:13px;color:var(--mut);margin-top:5px}
+.prog-l{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin:14px 0 6px}
+.prog{height:8px;background:var(--soft);border-radius:4px;overflow:hidden}
+.prog>div{height:8px;background:var(--stop);border-radius:4px}
+.prog>div.ok{background:var(--ok)}
+
+/* ---------- кнопки ---------- */
+.btns{display:grid;gap:9px;margin-top:14px}
+.btns.two{grid-template-columns:1fr 1fr}
+.btn{min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;
+     border-radius:10px;font-size:14px;border:1px solid var(--line);
+     background:var(--card);color:var(--ink);padding:0 14px;text-align:center;
+     text-decoration:none}
+a.btn{color:var(--ink)}
+a.btn.primary{color:var(--on-stop)}
+.btn.primary{background:var(--stop);border-color:var(--stop);color:var(--on-stop);font-weight:600}
+.btn.green{background:var(--ok);border-color:var(--ok);color:var(--on-ok);font-weight:600}
+.btn.ghost{background:transparent}
+.btn.sm{min-height:40px;font-size:13px;border-radius:9px}
+.mic-dot{width:9px;height:9px;border-radius:50%;background:var(--mut);flex:none}
+.btn.rec{border-color:var(--stop);color:var(--stop);font-weight:600}
+.btn.rec .mic-dot{background:var(--stop);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){ .btn.rec .mic-dot{animation:none} }
+.btn.wide{width:100%}
+
+/* ---------- строки списка ---------- */
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;
+      display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;
+      min-height:56px;width:100%;text-align:left}
+.item.plain{grid-template-columns:1fr auto}
+.i-time{font-size:12.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.i-who{font-size:14.5px;font-weight:600}
+.i-what{font-size:12px;color:var(--mut);margin-top:2px}
+.i-sum{font-size:12.5px;color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}
+.item.next{border-color:var(--ok)}
+.item.run{border-color:var(--stop);background:var(--tint)}
+.item.past{opacity:.55}
+.item.pick{width:100%;text-align:left;cursor:pointer}
+.item.pick .tick{color:transparent;font-size:17px;font-weight:700}
+.item.pick.on{border-color:var(--stop);background:var(--tint)}
+.item.pick.on .tick{color:var(--stop)}
+.item.brk{background:var(--soft);border-style:dashed;color:var(--mut);font-size:12.5px;
+          grid-template-columns:52px 1fr auto}
+/* приёмы у колориста длинные, и запись легко наложить на предыдущую —
+   лента дня показывает наложение прямо там, где оно возникло */
+.item.over{background:var(--card);border-style:dashed;border-color:var(--warn);color:var(--warn);
+           font-size:12.5px;grid-template-columns:52px 1fr auto}
+
+/* ---------- расписание: день, неделя, месяц ---------- */
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:var(--soft);
+     border:1px solid var(--line);border-radius:11px;padding:4px}
+.seg button{min-height:40px;border:none;background:transparent;color:var(--mut);
+            font-size:13px;border-radius:8px;padding:0 2px}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;
+               box-shadow:0 1px 2px rgba(31,46,60,.09)}
+.per{display:grid;grid-template-columns:46px 1fr 46px;gap:8px;align-items:center;margin:2px 0}
+.per .ttl{text-align:center;font-size:15px;font-weight:600;line-height:1.25}
+.per .ttl span{display:block;font-size:11.5px;font-weight:400;color:var(--mut);margin-top:2px}
+.per .nav{min-height:44px;border:1px solid var(--line);background:var(--card);
+          border-radius:10px;color:var(--ink);font-size:16px;display:flex;
+          align-items:center;justify-content:center}
+
+.wk{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:11px 13px;min-height:58px;width:100%;text-align:left}
+.wk.now{border-color:var(--stop);background:var(--tint)}
+.wk .dt{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.wk .dt b{display:block;font-size:17px;color:var(--ink);letter-spacing:0;
+          font-variant-numeric:tabular-nums;margin-top:1px}
+.load{height:6px;border-radius:3px;background:var(--soft);overflow:hidden;margin-top:6px}
+.load>div{height:6px;background:var(--stop);border-radius:3px}
+
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .hd{font-size:10px;color:var(--mut);text-align:center;padding:3px 0;
+         text-transform:uppercase;letter-spacing:.05em}
+.cell{aspect-ratio:1/1;border:1px solid var(--line);border-radius:9px;background:var(--card);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+      font-size:13.5px;color:var(--ink);padding:2px;font-variant-numeric:tabular-nums}
+.cell.out{opacity:.3}
+.cell.has{background:var(--tint);border-color:var(--tintline);font-weight:600}
+.cell.now{border-color:var(--stop);border-width:2px}
+.cell .dots{display:flex;gap:2px;height:5px;align-items:center}
+.cell .dots i{width:4px;height:4px;border-radius:50%;background:var(--stop);display:block}
+.cell .dots u{font-size:9px;color:var(--stop);text-decoration:none;font-weight:600;line-height:1}
+
+.todo{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;
+      display:grid;grid-template-columns:9px 1fr auto;gap:10px;align-items:center;min-height:56px;width:100%;text-align:left}
+.mk{width:9px;height:9px;border-radius:50%}
+.act{font-size:12.5px;color:var(--stop);white-space:nowrap}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.stat{display:flex;justify-content:space-between;font-size:13px;
+      border-bottom:1px solid var(--soft);padding-bottom:7px}
+.stat b{font-weight:600;font-variant-numeric:tabular-nums}
+
+.kvs{display:flex;flex-direction:column;gap:0;margin:12px 0}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;
+    border-bottom:1px solid var(--soft);padding:9px 0}
+.kv b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{font-size:12.5px;color:var(--mut);line-height:1.45;margin:10px 0}
+
+.chip-row{display:flex;gap:7px;flex-wrap:wrap}
+.chip{font-size:12px;padding:7px 11px;border-radius:999px;border:1px solid var(--line);
+      background:var(--card);color:var(--mut);min-height:36px;display:flex;align-items:center}
+.chip.on{background:var(--panel);border-color:var(--panel);color:var(--p-ink)}
+.tag{display:inline-block;font-size:10.5px;padding:3px 8px;border-radius:5px;margin-top:6px}
+.tag.red{background:rgba(168,81,71,.13);color:var(--stop)}
+.tag.amber{background:rgba(192,138,62,.15);color:var(--warn)}
+.tag.green{background:rgba(75,127,98,.14);color:var(--ok)}
+
+/* ---------- поля ---------- */
+.field{margin-bottom:12px}
+.lab{font-size:12px;color:var(--mut);margin-bottom:5px;display:block}
+.inp{width:100%;min-height:48px;border:1px solid var(--line);border-radius:10px;
+     background:var(--card);padding:12px 13px;font-size:15px}
+textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hintline{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
+
+/* ---------- нижняя панель ---------- */
+.tabbar{flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+        background:var(--card);border-top:1px solid var(--line);
+        padding-bottom:env(safe-area-inset-bottom)}
+.nv{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    font-size:10.5px;color:var(--mut);background:none;border:none}
+.nv.on{color:var(--stop)}
+
+/* ---------- шторка ---------- */
+.veil{position:fixed;inset:0;background:rgba(12,20,28,.5);opacity:0;pointer-events:none;
+      transition:opacity .18s ease;z-index:40}
+.veil.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground);
+       border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .22s ease;
+       max-height:92dvh;display:flex;flex-direction:column}
+.sheet.on{transform:translateY(0)}
+.sh-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+         padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.sh-title{font-size:16px;font-weight:600}
+.sh-x{background:none;border:none;color:var(--mut);font-size:20px;min-width:44px;min-height:44px}
+.sh-body{overflow-y:auto;padding:14px 16px;flex:1}
+.sh-foot{flex:none;padding:12px 16px calc(env(safe-area-inset-bottom) + 14px);
+         border-top:1px solid var(--line);display:grid;gap:9px}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 0}
+
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 74px);transform:translate(-50%,-14px);z-index:60;
+       background:var(--panel);color:var(--p-ink);font-size:13px;padding:11px 16px;border-radius:10px;
+       opacity:0;pointer-events:none;transition:all .2s ease;max-width:88vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <div class="top-name">Точка красоты. Волосы</div>
+        <div class="top-title" id="topTitle">Сегодня</div>
+        <div class="top-sub" id="topSub"></div>
+      </div>
+      <div class="top-acts">
+        <button class="tbtn" id="btnUndo" title="Отменить" aria-label="Отменить">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-3"/></svg>
+        </button>
+        <button class="tbtn" id="btnTheme" title="Тема" aria-label="Тема">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="saved" id="savedAt"></div>
+  </header>
+
+  <main class="screen" id="screen"></main>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="nv" data-tab="today">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+      Сегодня
+    </button>
+    <button class="nv" data-tab="clients">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M17.5 15c2 .6 3.2 2.2 3.5 5"/></svg>
+      Клиенты
+    </button>
+    <button class="nv" data-tab="appts">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7 9h10M7 12.5h10M7 16h6"/></svg>
+      Записи
+    </button>
+    <button class="nv" data-tab="stock">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 20 7.5v9L12 20.5 4 16.5v-9z"/><path d="M4 7.5l8 4 8-4M12 11.5v9"/></svg>
+      Материалы
+    </button>
+    <button class="nv" data-tab="more">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      Ещё
+    </button>
+  </nav>
+</div>
+
+<div class="veil" id="veil"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div class="sh-head">
+    <div class="sh-title" id="shTitle"></div>
+    <button class="sh-x" id="shClose" aria-label="Закрыть">✕</button>
+  </div>
+  <div class="sh-body" id="shBody"></div>
+  <div class="sh-foot" id="shFoot"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= данные и хранение ================= */
+/* Ключ хранения. Смена ключа = чистый первый запуск: пока кабинет
+   показывают, а не работают в нём, это правильнее, чем оставлять человека
+   со старым, неполным примером. */
+var KEY = 'tochka-krasoty-volosy-v2';
+var DB = null, UNDO = [], SAVED_AT = null;
+
+function pad(n){ return (n<10?'0':'') + n; }
+function iso(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function today(){ return iso(new Date()); }
+function shiftDays(isoStr, days){
+  var p = isoStr.split('-'); var d = new Date(+p[0], +p[1]-1, +p[2]);
+  d.setDate(d.getDate() + days); return iso(d);
+}
+function daysBetween(a, b){
+  var pa = a.split('-'), pb = b.split('-');
+  var da = new Date(+pa[0], +pa[1]-1, +pa[2]), db = new Date(+pb[0], +pb[1]-1, +pb[2]);
+  return Math.round((db - da) / 86400000);
+}
+function mins(hhmm){ var p = hhmm.split(':'); return (+p[0])*60 + (+p[1]); }
+function hhmm(m){ m = Math.max(0, Math.round(m)); return pad(Math.floor(m/60)%24) + ':' + pad(m%60); }
+function dur(m){
+  var h = Math.floor(m/60), r = m%60;
+  if(h && r) return h + ' ч ' + r + ' мин';
+  if(h) return h + ' ч';
+  return r + ' мин';
+}
+function rub(n){ return (n||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽'; }
+var MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+var WDAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+var WDAYS_ACC = ['воскресенье','понедельник','вторник','среду','четверг','пятницу','субботу'];
+var WDAYS_SHORT = ['ВС','ПН','ВТ','СР','ЧТ','ПТ','СБ'];
+function longDate(isoStr){
+  var p = isoStr.split('-'); var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return WDAYS[d.getDay()] + ', ' + (+p[2]) + ' ' + MONTHS[+p[1]-1];
+}
+/* «на субботу, 29 августа» — винительный падеж, иначе фраза в сообщении
+   клиенту читается как машинная */
+function dateAcc(isoStr){
+  var p = isoStr.split('-'); var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return WDAYS_ACC[d.getDay()] + ', ' + (+p[2]) + ' ' + MONTHS[+p[1]-1];
+}
+function shortDate(isoStr){
+  var p = isoStr.split('-');
+  return (+p[2]) + ' ' + MONTHS[+p[1]-1];
+}
+/* неделя считается с понедельника: так её видит мастер, а не браузер */
+function weekStart(isoStr){
+  var p = isoStr.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]);
+  var wd = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - wd);
+  return iso(d);
+}
+function monthStart(isoStr){
+  var p = isoStr.split('-');
+  return p[0] + '-' + p[1] + '-01';
+}
+function shiftMonths(isoStr, n){
+  var p = isoStr.split('-'), d = new Date(+p[0], +p[1]-1 + n, 1);
+  return iso(d);
+}
+function daysInMonth(isoStr){
+  var p = isoStr.split('-');
+  return new Date(+p[0], +p[1], 0).getDate();
+}
+var MONTHS_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь',
+                  'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+function monthName(isoStr){
+  var p = isoStr.split('-');
+  return MONTHS_NOM[+p[1]-1] + ' ' + p[0];
+}
+function uid(){ return 'x' + Math.random().toString(36).slice(2, 9); }
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* «34 дня», «31 день», «45 дней» — иначе строки отчёта читаются как машинные */
+function days(n){
+  var a = Math.abs(n) % 100, b = a % 10;
+  if(a > 10 && a < 20) return n + ' дней';
+  if(b > 1 && b < 5) return n + ' дня';
+  if(b === 1) return n + ' день';
+  return n + ' дней';
+}
+
+/* «1 туба», «2 тубы», «5 туб» — иначе остаток читается как машинный */
+var UNIT_FORMS = {
+  'туба':['туба','тубы','туб'], 'флакон':['флакон','флакона','флаконов'],
+  'банка':['банка','банки','банок'], 'рулон':['рулон','рулона','рулонов'],
+  'упаковка':['упаковка','упаковки','упаковок'], 'штука':['штука','штуки','штук']
+};
+function unitOf(n, unit){
+  var f = UNIT_FORMS[unit];
+  if(!f) return unit;
+  var a = Math.abs(n) % 100, b = a % 10;
+  if(a > 10 && a < 20) return f[2];
+  if(b > 1 && b < 5) return f[1];
+  if(b === 1) return f[0];
+  return f[2];
+}
+
+/* Процедуры делятся на три рода: окрашивание, стрижка и уход.
+   От рода зависит, какой личный ритм клиента обновляется после приёма
+   и нужно ли напоминать об аллергопробе. */
+function SERVICES(){
+  return [
+    {id:'s1',  name:'Женская стрижка',          dur:60,  price:2500, kind:'cut'},
+    {id:'s2',  name:'Мужская стрижка',          dur:40,  price:1200, kind:'cut'},
+    {id:'s3',  name:'Чёлка, коррекция стрижки', dur:20,  price:700,  kind:'cut'},
+    {id:'s4',  name:'Окрашивание корней',       dur:90,  price:3500, kind:'color'},
+    {id:'s5',  name:'Окрашивание в один тон',   dur:120, price:4500, kind:'color'},
+    {id:'s6',  name:'Тонирование',              dur:60,  price:3000, kind:'color'},
+    {id:'s7',  name:'Мелирование',              dur:180, price:6000, kind:'color'},
+    {id:'s8',  name:'Осветление и тонирование', dur:210, price:8000, kind:'color'},
+    {id:'s9',  name:'Балаяж, шатуш, AirTouch',  dur:240, price:9500, kind:'color'},
+    {id:'s10', name:'Уход, ботокс, кератин',    dur:90,  price:3500, kind:'care'},
+    {id:'s11', name:'Укладка',                  dur:40,  price:1800, kind:'care'}
+  ];
+}
+
+/* ---------- заготовка ---------- */
+function seed(){
+  var t = today();
+  var services = SERVICES();
+  /* Ритмы подобраны так, чтобы в примере были видны все три состояния:
+     спокойное, «скоро» и «пора звать». Наталья и Вера записей впереди
+     не имеют — на них и виден список тех, кому нужно написать. */
+  var clients = [
+    {id:'c1',  name:'Ирина Соколова',   phone:'+7 916 000-11-22', link:'whatsapp', cycleRoots:35, cycleCut:70, allergy:shiftDays(t,-210), note:'Седина около 40 %, корни закрывать плотно'},
+    {id:'c2',  name:'Марина Гуляева',   phone:'+7 903 000-33-44', link:'telegram', cycleRoots:35, cycleCut:49, allergy:shiftDays(t,-150), note:''},
+    {id:'c3',  name:'Ольга Панкратова', phone:'+7 926 000-55-66', link:'whatsapp', cycleRoots:49, cycleCut:70, allergy:shiftDays(t,-320), note:'Сложное окрашивание, длина ниже лопаток'},
+    {id:'c4',  name:'Дарья Ким',        phone:'+7 985 000-77-88', link:'telegram', cycleRoots:32, cycleCut:56, allergy:null,              note:'Волос тонкий, осветление держать под контролем'},
+    {id:'c5',  name:'Светлана Ершова',  phone:'+7 915 000-99-00', link:'whatsapp', cycleRoots:35, cycleCut:49, allergy:shiftDays(t,-95),  note:''},
+    {id:'c6',  name:'Анна Литвинова',   phone:'+7 909 111-22-33', link:'whatsapp', cycleRoots:56, cycleCut:70, allergy:shiftDays(t,-60),  note:''},
+    {id:'c7',  name:'Юлия Бекетова',    phone:'+7 977 444-55-66', link:'telegram', cycleRoots:30, cycleCut:60, allergy:null,              note:'Раньше красилась чёрным, длина вытравлена'},
+    {id:'c8',  name:'Ксения Раева',     phone:'+7 962 777-88-99', link:'whatsapp', cycleRoots:42, cycleCut:56, allergy:shiftDays(t,-40),  note:'Каре, любит холодный тон'},
+    {id:'c9',  name:'Наталья Фомина',   phone:'+7 906 222-33-44', link:'whatsapp', cycleRoots:28, cycleCut:49, allergy:shiftDays(t,-180), note:'Седина по краю роста волос'},
+    {id:'c10', name:'Вера Логинова',    phone:'+7 968 555-66-77', link:'telegram', cycleRoots:35, cycleCut:56, allergy:shiftDays(t,-250), note:''}
+  ];
+  var appts = [];
+  function add(o){ appts.push(o); }
+  /* формула хранится полным набором полей: так её не приходится
+     проверять на существование в каждом месте, где она показывается */
+  function card(o){
+    var k = {brand:'', rootTone:'', lenTone:'', oxide:'', ratio:'', hold:'', grams:'',
+             zones:'', tech:'', bleach:'', toneAfter:'', before:'', result:''};
+    for(var key in o) if(o.hasOwnProperty(key)) k[key] = o[key];
+    return k;
+  }
+
+  /* сегодняшний день: длинные приёмы вперемешку с короткими —
+     на них и проверяется расчёт свободных окон */
+  add({id:'a1', clientId:'c1', serviceId:'s4', date:t, time:'09:00', dur:90, price:3500, status:'paid',
+       card:card({brand:'Estel', rootTone:'7.1', oxide:'6 %', ratio:'1:1', hold:'35', grams:'60 г',
+                  zones:'корни', tech:'классика', before:'седина 40 %', result:'ровный, седина закрыта'}),
+       rootsDays:null, toneDays:null, complaint:'', redo:false, note:''});
+  add({id:'a2', clientId:'c2', serviceId:'s1', date:t, time:'11:00', dur:60, price:2500, status:'running',
+       startedAt: Date.now() - 22*60000,
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:''});
+  add({id:'a3', clientId:'c3', serviceId:'s9', date:t, time:'12:30', dur:240, price:9500, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:''});
+  add({id:'a4', clientId:'c4', serviceId:'s6', date:t, time:'17:00', dur:60, price:3000, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:''});
+  add({id:'a5', clientId:'c5', serviceId:'s2', date:t, time:'18:30', dur:40, price:1200, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:''});
+
+  /* ближайшие дни */
+  add({id:'a6', clientId:'c6', serviceId:'s5', date:shiftDays(t,1), time:'10:00', dur:120, price:4500, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:'',
+       sentConfirm:shiftDays(t,-3), sentRemind:null});
+  add({id:'a7', clientId:'c8', serviceId:'s1', date:shiftDays(t,1), time:'14:00', dur:60, price:2500, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:'',
+       sentConfirm:null, sentRemind:null});
+  /* Юлия Бекетова красится в первый раз, аллергопробы нет — кабинет напомнит */
+  add({id:'a8', clientId:'c7', serviceId:'s8', date:shiftDays(t,2), time:'11:00', dur:210, price:8000, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:'',
+       sentConfirm:shiftDays(t,-1), sentRemind:null});
+  add({id:'a9', clientId:'c3', serviceId:'s4', date:shiftDays(t,4), time:'15:30', dur:90, price:3500, status:'plan',
+       card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:'',
+       sentConfirm:null, sentRemind:null});
+
+  /* Записи на три недели вперёд — чтобы расписание на неделю и на месяц
+     в примере было не пустым */
+  var ahead = [
+    ['c1','s1',  5, '11:00'], ['c5','s4',  6, '10:00'], ['c2','s6',  7, '13:00'],
+    ['c8','s4',  8, '09:30'], ['c4','s1',  9, '16:00'], ['c6','s7', 11, '10:00'],
+    ['c2','s4', 12, '12:00'], ['c3','s1', 13, '18:00'], ['c6','s5', 14, '10:30'],
+    ['c7','s1', 16, '11:00'], ['c1','s4', 18, '09:00'], ['c5','s11',19, '17:00'],
+    ['c2','s1', 20, '14:00'], ['c8','s6', 21, '12:00']
+  ];
+  ahead.forEach(function(x, i){
+    var sv = services.filter(function(y){ return y.id === x[1]; })[0];
+    add({id:'f'+i, clientId:x[0], serviceId:x[1], date:shiftDays(t, x[2]), time:x[3],
+         dur:sv.dur, price:sv.price, status:'plan',
+         card:card({}), rootsDays:null, toneDays:null, complaint:'', redo:false, note:'',
+         sentConfirm: (i % 3 ? shiftDays(t,-1) : null), sentRemind:null});
+  });
+
+  /* Ближайшие две недели позади: без них расписание на месяц выглядит
+     полупустым, а отчёт о деньгах за 30 дней — беднее, чем на самом деле */
+  var recent = [
+    ['c8','s1',  -2, '11:00', {tech:'стрижка', result:'каре, длину держим'}],
+    ['c6','s4',  -3, '09:30', {brand:'Estel', rootTone:'6.0', oxide:'6 %', ratio:'1:1', hold:'35',
+                               grams:'50 г', zones:'корни', tech:'классика', result:'ровный'}],
+    ['c10','s11',-4, '17:00', {}],
+    ['c4','s10', -5, '14:00', {}],
+    ['c2','s1',  -6, '12:00', {tech:'стрижка', result:'концы подравняли'}],
+    ['c2','s6',  -8, '10:00', {brand:'Wella', lenTone:'9.16', oxide:'3 %', ratio:'1:2', hold:'20',
+                               grams:'60 г', zones:'длина', tech:'классика', result:'холодный'}],
+    ['c1','s11', -9, '18:00', {}],
+    ['c7','s2', -11, '13:00', {tech:'стрижка', result:''}],
+    ['c5','s7', -12, '10:00', {brand:'Matrix', lenTone:'9.1', oxide:'6 %', ratio:'1:2', hold:'30',
+                               grams:'80 г', zones:'длина', tech:'мелирование фольгой',
+                               bleach:'порошок, 6 %, 20 мин', result:'ровно'}],
+    ['c3','s10',-13, '15:00', {}],
+    ['c6','s1', -15, '11:30', {tech:'стрижка', result:''}],
+    ['c8','s4', -16, '09:00', {brand:'Kapous', rootTone:'8.0', oxide:'6 %', ratio:'1:1', hold:'35',
+                               grams:'50 г', zones:'корни', tech:'классика', result:'ровный'}]
+  ];
+  recent.forEach(function(x, i){
+    var sv = services.filter(function(y){ return y.id === x[1]; })[0];
+    add({id:'r'+i, clientId:x[0], serviceId:x[1], date:shiftDays(t, x[2]), time:x[3],
+         dur:sv.dur, price:sv.price, status:'paid',
+         card:card(x[4]), rootsDays:null, toneDays:null, complaint:'', redo:false, note:''});
+  });
+
+  /* История. Нужна отчёту «Качество работы»: без полутора десятков записей
+     с формулами и сроками считать в нём нечего. */
+  var hist = [
+    /* клиент, процедура, дней назад, формула, корни отросли, тон вымылся, жалоба, переделка */
+    ['c1','s4', -35, {brand:'Estel', rootTone:'7.1', oxide:'6 %', ratio:'1:1', hold:'35', grams:'60 г',
+                      zones:'корни', tech:'классика', before:'седина 40 %', result:'ровный'}, 33, null, '', false],
+    ['c1','s1', -63, {tech:'стрижка', result:'длину сохранили'}, null, null, '', false],
+    ['c2','s5', -28, {brand:'Wella', rootTone:'8.0', lenTone:'8.0', oxide:'6 %', ratio:'1:1.5', hold:'40',
+                      grams:'90 г', zones:'вся длина', tech:'классика', before:'свой цвет',
+                      result:'попали в тон'}, 30, 38, '', false],
+    ['c2','s6', -56, {brand:'Wella', lenTone:'9.16', oxide:'3 %', ratio:'1:2', hold:'20', grams:'60 г',
+                      zones:'длина', tech:'классика', toneAfter:'9.16 на 1,5 %',
+                      result:'холодный'}, null, 24, 'пожелтение', false],
+    ['c3','s9', -42, {brand:'Schwarzkopf', lenTone:'9.1', oxide:'9 %', ratio:'1:2', hold:'45', grams:'120 г',
+                      zones:'длина', tech:'AirTouch', bleach:'порошок, 6 %, 25 мин',
+                      toneAfter:'9.16 на 1,5 %', before:'свой цвет', result:'мягкая растяжка'}, 44, 40, '', false],
+    ['c3','s4', -84, {brand:'Estel', rootTone:'6.0', oxide:'6 %', ratio:'1:1', hold:'35', grams:'60 г',
+                      zones:'корни', tech:'классика', before:'седина 20 %', result:'ровный'}, 41, null, '', false],
+    ['c4','s7', -30, {brand:'Matrix', lenTone:'9.1', oxide:'6 %', ratio:'1:2', hold:'30', grams:'80 г',
+                      zones:'длина', tech:'мелирование фольгой', bleach:'порошок, 6 %, 20 мин',
+                      toneAfter:'9.1 на 1,5 %', before:'свой цвет',
+                      result:'немного тёплый'}, 36, 26, 'пожелтение', true],
+    ['c4','s1', -30, {tech:'стрижка', result:'концы подравняли'}, null, null, '', false],
+    ['c5','s4', -28, {brand:'Estel', rootTone:'8.0', oxide:'6 %', ratio:'1:1', hold:'35', grams:'50 г',
+                      zones:'корни', tech:'классика', before:'седина 25 %', result:'ровный'}, 27, null, '', false],
+    ['c5','s6', -56, {brand:'Estel', lenTone:'8.34', oxide:'3 %', ratio:'1:2', hold:'20', grams:'60 г',
+                      zones:'длина', tech:'классика', result:'тёплый, как просили'}, null, 21, '', false],
+    ['c6','s5', -49, {brand:'Kapous', rootTone:'6.0', lenTone:'6.0', oxide:'6 %', ratio:'1:1.5', hold:'40',
+                      grams:'100 г', zones:'вся длина', tech:'классика', before:'окрашено чёрным',
+                      result:'пятна на длине'}, 45, 30, 'пятна', true],
+    ['c6','s1', -63, {tech:'стрижка', result:''}, null, null, '', false],
+    /* Юлия Бекетова красилась в другом месте: в кабинете окрашиваний у неё
+       ещё не было, и перед первым кабинет спросит про аллергопробу */
+    ['c7','s1', -50, {tech:'стрижка', result:'форму сохранили'}, null, null, '', false],
+    ['c5','s5', -70, {brand:'Estel', rootTone:'7.1', lenTone:'7.1', oxide:'6 %', ratio:'1:1', hold:'35',
+                      grams:'90 г', zones:'вся длина', tech:'классика', before:'окрашено чёрным',
+                      result:'длина осталась темнее'}, 32, 34, 'цвет ушёл', false],
+    ['c8','s4', -35, {brand:'Wella', rootTone:'7.1', oxide:'6 %', ratio:'1:1', hold:'35', grams:'50 г',
+                      zones:'корни', tech:'классика', before:'седина 15 %', result:'ровный'}, 34, null, '', false],
+    ['c8','s1', -42, {tech:'стрижка', result:'каре, длину держим'}, null, null, '', false],
+    ['c8','s6', -77, {brand:'Wella', lenTone:'9.16', oxide:'3 %', ratio:'1:2', hold:'20', grams:'60 г',
+                      zones:'длина', tech:'классика', toneAfter:'9.16 на 1,5 %',
+                      result:'холодный'}, null, 28, '', false],
+    ['c9','s4', -40, {brand:'Estel', rootTone:'6.0', oxide:'6 %', ratio:'1:1', hold:'35', grams:'50 г',
+                      zones:'корни', tech:'классика', before:'седина 30 %', result:'ровный'}, 29, null, '', false],
+    ['c9','s1', -60, {tech:'стрижка', result:'длину убрали на два пальца'}, null, null, '', false],
+    ['c10','s5', -38, {brand:'Kapous', rootTone:'8.0', lenTone:'8.0', oxide:'6 %', ratio:'1:1.5', hold:'40',
+                      grams:'90 г', zones:'вся длина', tech:'классика', before:'свой цвет',
+                      result:'попали в тон'}, 33, 36, '', false],
+    ['c10','s1', -38, {tech:'стрижка', result:'форму держим'}, null, null, '', false]
+  ];
+  hist.forEach(function(h, i){
+    var s = services.filter(function(x){ return x.id === h[1]; })[0];
+    add({id:'h'+i, clientId:h[0], serviceId:h[1], date:shiftDays(t, h[2]), time:'12:00',
+         dur:s.dur, price:s.price, status:'paid',
+         card:card(h[3]), rootsDays:h[4], toneDays:h[5], complaint:h[6], redo:h[7], note:''});
+  });
+
+  var stock = [
+    {id:'m1',  name:'Краска Estel 7.1',         unit:'туба',   qty:1, min:2, ordered:false, note:'ходовой тон, уходит быстрее всех'},
+    {id:'m2',  name:'Краска Estel 8.0',         unit:'туба',   qty:2, min:1, ordered:false, note:''},
+    {id:'m3',  name:'Краска Wella 9.16',        unit:'туба',   qty:3, min:1, ordered:false, note:''},
+    {id:'m4',  name:'Краска Matrix 5.7',        unit:'туба',   qty:4, min:1, ordered:false, note:'брали под один заказ'},
+    {id:'m5',  name:'Оксид 3 %',                unit:'флакон', qty:2, min:1, ordered:false, note:''},
+    {id:'m6',  name:'Оксид 6 %',                unit:'флакон', qty:3, min:2, ordered:false, note:''},
+    {id:'m7',  name:'Оксид 9 %',                unit:'флакон', qty:2, min:1, ordered:false, note:''},
+    {id:'m8',  name:'Оксид 12 %',               unit:'флакон', qty:2, min:1, ordered:false, note:''},
+    {id:'m9',  name:'Осветляющий порошок',      unit:'банка',  qty:2, min:1, ordered:false, note:''},
+    {id:'m10', name:'Шампунь глубокой очистки', unit:'штука',  qty:2, min:1, ordered:false, note:''},
+    {id:'m11', name:'Уход после окрашивания',   unit:'штука',  qty:1, min:2, ordered:false, note:''},
+    {id:'m12', name:'Фольга',                   unit:'рулон',  qty:1, min:2, ordered:false, note:''},
+    {id:'m13', name:'Перчатки нитриловые, S',   unit:'упаковка', qty:3, min:2, ordered:false, note:''},
+    {id:'m14', name:'Воротнички бумажные',      unit:'упаковка', qty:4, min:2, ordered:false, note:''},
+    {id:'m15', name:'Лезвия для бритвы',        unit:'упаковка', qty:4, min:2, ordered:false, note:''}
+  ];
+  var clean = [
+    {id:'j1', date:shiftDays(t,-1), kind:'Ножницы',  count:3, note:'раствор, 15 минут'},
+    {id:'j2', date:shiftDays(t,-1), kind:'Расчёски', count:8, note:''},
+    {id:'j3', date:shiftDays(t,-3), kind:'Машинка, ножевой блок', count:2, note:'после каждой стрижки'}
+  ];
+
+  /* Заметки. Их наговаривают голосом между делом: пожелание клиента,
+     что купить, чем закончилась переделка. */
+  var notes = [
+    {id:'n1', date:shiftDays(t,-1), clientId:'c1',
+     text:'Ирина просила в следующий раз на полтона темнее — 6.1, седину закрывает хуже, держать сорок минут.'},
+    {id:'n2', date:shiftDays(t,-2), clientId:'c4',
+     text:'Дарья: волос после осветления пористый, длину не трогаем до Нового года. Уход дважды в неделю.'},
+    {id:'n3', date:shiftDays(t,-3), clientId:null,
+     text:'Заказать фольгу и воротнички, у поставщика акция до пятницы.'},
+    {id:'n4', date:shiftDays(t,-5), clientId:'c3',
+     text:'Ольга хочет к отпуску AirTouch посветлее. Посчитать порошок: на её длину уходит полторы порции.'}
+  ];
+
+  return {
+    v:1,
+    services:services, clients:clients, appts:appts, stock:stock, clean:clean, notes:notes,
+    settings:{ theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null,
+               place:'Ленинский проспект, 74, кв. 12, домофон 12', signature:'',
+               stockAskedOn:null }
+  };
+}
+
+/* Чистый кабинет для нового мастера. Клиентов, записей и истории нет,
+   но процедуры с ценами и список расходников оставлены заготовкой: без них
+   первую запись сделать не из чего. Всё это правится в самом кабинете. */
+function blank(){
+  return {
+    v:1,
+    services:SERVICES(),
+    clients:[], appts:[],
+    stock:[
+      {id:'m1', name:'Краска, ходовой тон', unit:'туба',   qty:0, min:2, ordered:false, note:''},
+      {id:'m2', name:'Оксид 3 %',           unit:'флакон', qty:0, min:1, ordered:false, note:''},
+      {id:'m3', name:'Оксид 6 %',           unit:'флакон', qty:0, min:2, ordered:false, note:''},
+      {id:'m4', name:'Оксид 9 %',           unit:'флакон', qty:0, min:1, ordered:false, note:''},
+      {id:'m5', name:'Осветляющий порошок', unit:'банка',  qty:0, min:1, ordered:false, note:''},
+      {id:'m6', name:'Шампунь, уход',       unit:'штука',  qty:0, min:1, ordered:false, note:''},
+      {id:'m7', name:'Фольга',              unit:'рулон',  qty:0, min:2, ordered:false, note:''},
+      {id:'m8', name:'Перчатки',            unit:'упаковка', qty:0, min:2, ordered:false, note:''},
+      {id:'m9', name:'Воротнички',          unit:'упаковка', qty:0, min:2, ordered:false, note:''},
+      {id:'m10',name:'Лезвия',              unit:'упаковка', qty:0, min:2, ordered:false, note:''}
+    ],
+    clean:[], notes:[],
+    settings:{ theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null,
+               place:'', signature:'', stockAskedOn:null }
+  };
+}
+
+/* при самом первом открытии кабинет спрашивает, с чего начать,
+   и до ответа ничего не сохраняет */
+var NEED_START = false;
+
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(raw){ DB = JSON.parse(raw); }
+  }catch(e){ DB = null; }
+  if(!DB || !DB.services){ DB = blank(); NEED_START = true; }
+  if(!DB.settings) DB.settings = { theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null };
+  if(DB.settings.place == null) DB.settings.place = '';
+  if(DB.settings.signature == null) DB.settings.signature = '';
+  if(DB.settings.stockAskedOn === undefined) DB.settings.stockAskedOn = null;
+  if(!Array.isArray(DB.clean)) DB.clean = [];
+  if(!Array.isArray(DB.notes)) DB.notes = [];
+  /* карточка клиента из более ранней сборки: один ритм разворачиваем в два */
+  DB.clients.forEach(function(c){
+    if(c.cycleRoots == null) c.cycleRoots = c.cycle || 35;
+    if(c.cycleCut == null) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : 56;
+    if(c.allergy === undefined) c.allergy = null;
+  });
+  tidyStatuses();
+  document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
+}
+
+/* приём, начатый вчера и не завершённый, переводим в «ждёт оплаты»,
+   иначе он пропадает с экрана «Сегодня» и добраться до него неоткуда */
+function tidyStatuses(){
+  var t = today(), changed = false;
+  DB.appts.forEach(function(a){
+    if(a.status === 'running' && a.date < t){
+      a.status = 'done';
+      a.stuck = true;
+      if(a.startedAt && !a.fact) a.fact = null;
+      changed = true;
+    }
+  });
+  if(changed) save(true);
+}
+
+var SAVE_OK = true;
+function save(silent){
+  try{
+    localStorage.setItem(KEY, JSON.stringify(DB));
+    SAVED_AT = new Date();
+    SAVE_OK = true;
+  }catch(e){
+    SAVE_OK = false;
+    toast('Не сохранилось. Освободите место в телефоне или выйдите из режима инкогнито', true);
+  }
+  paintSaved();
+}
+
+function snapshot(){
+  try{ UNDO.push(JSON.stringify(DB)); }catch(e){}
+  if(UNDO.length > 20) UNDO.shift();
+  var b = document.getElementById('btnUndo'); if(b) b.disabled = false;
+}
+function undo(){
+  if(!UNDO.length){ toast('Отменять нечего'); return; }
+  DB = JSON.parse(UNDO.pop());
+  document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
+  save(); render();
+  toast('Последнее действие отменено');
+  var b = document.getElementById('btnUndo'); if(b) b.disabled = !UNDO.length;
+}
+</script>
+
+<script>
+/* ================= общее ================= */
+var TAB = 'today';
+var VIEW = {};                    /* временное состояние экранов: поиск, выбранный клиент и т.п. */
+
+function $(id){ return document.getElementById(id); }
+function svc(id){ return DB.services.filter(function(s){ return s.id === id; })[0] || {name:'Процедура', dur:60, price:0, kind:'care'}; }
+function cli(id){ return DB.clients.filter(function(c){ return c.id === id; })[0] || {name:'Клиент', phone:'', cycleRoots:35, cycleCut:56}; }
+function apptById(id){ return DB.appts.filter(function(a){ return a.id === id; })[0]; }
+function byTime(a, b){ return (a.date + a.time) < (b.date + b.time) ? -1 : 1; }
+function apptsOn(d){ return DB.appts.filter(function(a){ return a.date === d && a.status !== 'cancel'; }).sort(byTime); }
+function isColor(a){ return svc(a.serviceId).kind === 'color'; }
+
+/* Последний приём нужного рода: окрашивание считается отдельно от стрижки,
+   потому что корни обновляют раз в месяц, а стрижку — раз в полтора-два. */
+function lastVisitKind(clientId, kind){
+  var list = DB.appts.filter(function(a){
+    return a.clientId === clientId && (a.status === 'paid' || a.status === 'done') &&
+           (!kind || svc(a.serviceId).kind === kind);
+  }).sort(byTime);
+  return list.length ? list[list.length-1].date : null;
+}
+function lastVisit(clientId){ return lastVisitKind(clientId, null); }
+
+function dueOne(c, kind){
+  var lv = lastVisitKind(c.id, kind);
+  var cyc = (kind === 'color') ? (c.cycleRoots || 35) : (c.cycleCut || 56);
+  if(!lv) return { text:'ещё не было', level:0, days:null, has:false };
+  var left = cyc - daysBetween(lv, today());
+  if(left <= -7) return { text:'просрочено на ' + days(-left), level:2, days:left, has:true };
+  if(left <= 0)  return { text:'срок подошёл', level:2, days:left, has:true };
+  if(left <= 3)  return { text:'через ' + days(left), level:1, days:left, has:true };
+  return { text:'через ' + days(left), level:0, days:left, has:true };
+}
+
+/* Два ритма сводятся в одну строку: в списке клиентов место есть только
+   на одну, а решение у мастера одно — звать или не звать. */
+function dueInfo(c){
+  var r = dueOne(c, 'color'), k = dueOne(c, 'cut');
+  var why = [];
+  if(r.level === 2) why.push('корни');
+  if(k.level === 2) why.push('стрижка');
+  var text;
+  if(!r.has && !k.has) text = 'приёмов ещё не было';
+  else if(why.length)  text = 'пора звать: ' + why.join(' и ');
+  else if(r.has && k.has) text = 'корни ' + r.text + ' · стрижка ' + k.text;
+  else if(r.has) text = 'корни ' + r.text;
+  else text = 'стрижка ' + k.text;
+  return { level: Math.max(r.level, k.level), text:text, roots:r, cut:k, why:why };
+}
+
+/* Аллергопроба нужна перед первым окрашиванием: это требование инструкции
+   производителя краски и защита мастера, если клиент придёт с жалобой. */
+function needAllergy(c){
+  if(!c || c.allergy) return false;
+  var wasColor = DB.appts.filter(function(a){
+    return a.clientId === c.id && (a.status === 'paid' || a.status === 'done') && isColor(a);
+  }).length;
+  if(wasColor) return false;
+  return DB.appts.filter(function(a){
+    return a.clientId === c.id && a.status === 'plan' && a.date >= today() && isColor(a);
+  }).length > 0;
+}
+
+function toast(msg, sticky){
+  var t = $('toast');
+  /* важное сообщение держится 7 секунд, и обычные подсказки его не затирают */
+  if(!sticky && toast._lock && Date.now() < toast._lock) return;
+  t.textContent = msg;
+  t.classList.toggle('bad', !!sticky);
+  t.classList.add('on');
+  toast._lock = sticky ? Date.now() + 7000 : 0;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove('on'); }, sticky ? 7000 : 2600);
+}
+function paintSaved(){
+  var el = $('savedAt'); if(!el) return;
+  if(!SAVE_OK){
+    el.textContent = 'НЕ СОХРАНЯЕТСЯ — записи пропадут при перезагрузке';
+    el.classList.add('bad');
+    return;
+  }
+  el.classList.remove('bad');
+  el.textContent = SAVED_AT ? ('сохранено ' + pad(SAVED_AT.getHours()) + ':' + pad(SAVED_AT.getMinutes())) : '';
+}
+
+/* ================= шторка ================= */
+function openSheet(title, body, foot){
+  $('shTitle').textContent = title;
+  $('shBody').innerHTML = body;
+  $('shFoot').innerHTML = foot || '';
+  $('sheet').classList.add('on'); $('veil').classList.add('on');
+}
+function closeSheet(){
+  if(typeof voiceStop === 'function') voiceStop();
+  $('sheet').classList.remove('on'); $('veil').classList.remove('on');
+}
+
+/* ================= показатели дня ================= */
+/* Приёмы у колориста идут по два-четыре часа, поэтому окна считаются
+   по фактическому концу предыдущей работы, а наложение записей
+   не прячется: оно показывается прямо в ленте дня. */
+function dayStats(d){
+  var list = apptsOn(d);
+  var busy = 0, expect = 0, got = 0;
+  list.forEach(function(a){
+    busy += a.dur; expect += a.price;
+    if(a.status === 'paid') got += a.price;
+  });
+  var ws = mins(DB.settings.workStart), we = mins(DB.settings.workEnd);
+  var cur = ws, free = [], over = 0;
+  list.forEach(function(a){
+    var st = mins(a.time);
+    if(st - cur >= 30) free.push({ from:cur, to:st });
+    if(st < cur) over += Math.min(cur - st, a.dur);
+    cur = Math.max(cur, st + a.dur);
+  });
+  var endsAt = Math.max(cur, ws);
+  if(we - cur >= 30) free.push({ from:cur, to:we });
+  return { count:list.length, busy:busy, expect:expect, got:got, free:free, list:list,
+           over:over, endsAt:endsAt, late: endsAt > we };
+}
+
+/* Лента дня целиком: прошедшие приёмы, свободные окна, накладки и то,
+   что впереди. Одна и та же лента показывается на «Сегодня» и в расписании
+   на выбранный день. */
+function dayRibbon(st, nextId, emptyText){
+  var h = '<div class="list">';
+  if(!st.list.length){
+    h += '<div class="empty">' + esc(emptyText || 'Записей на сегодня нет') + '</div>';
+    return h + '</div>';
+  }
+  var cur = mins(DB.settings.workStart);
+  st.list.forEach(function(a){
+    var start = mins(a.time);
+    if(start - cur >= 30){
+      h += '<div class="item brk"><div class="i-time">' + hhmm(cur) + '</div>' +
+           '<div>Свободно</div><div class="i-sum">' + dur(start - cur) + '</div></div>';
+    }
+    if(start < cur){
+      h += '<div class="item over"><div class="i-time">' + hhmm(start) + '</div>' +
+           '<div>Накладка на предыдущий приём</div>' +
+           '<div class="i-sum">' + dur(Math.min(cur - start, a.dur)) + '</div></div>';
+    }
+    cur = Math.max(cur, start + a.dur);
+    var cl = a.status === 'paid' || a.status === 'done' ? 'past'
+           : a.status === 'running' ? 'run'
+           : (nextId && a.id === nextId ? 'next' : '');
+    var mark = a.status === 'paid' ? 'оплачено' : a.status === 'done' ? 'ждёт оплаты'
+             : a.status === 'running' ? 'идёт' : rub(a.price);
+    /* длительность вынесена в правый столбец: у колориста названия процедур
+       длинные, и в одну строку с ними она не помещается */
+    h += '<button class="item ' + cl + '" data-act="apptCard" data-id="' + a.id + '">' +
+           '<div class="i-time">' + a.time + '</div>' +
+           '<div><div class="i-who">' + esc(cli(a.clientId).name) + '</div>' +
+           '<div class="i-what">' + esc(svc(a.serviceId).name) + '</div></div>' +
+           '<div class="i-sum">' + mark + '<div class="muted">' + dur(a.dur) + '</div></div>' +
+         '</button>';
+  });
+  if(st.late){
+    h += '<div class="item over"><div class="i-time">' + hhmm(mins(DB.settings.workEnd)) + '</div>' +
+         '<div>Последний приём заканчивается позже конца рабочего дня</div>' +
+         '<div class="i-sum">' + hhmm(st.endsAt) + '</div></div>';
+  }
+  return h + '</div>';
+}
+
+/* ================= экран «Сегодня» ================= */
+function renderToday(){
+  var d = today(), st = dayStats(d), now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
+  var h = '';
+
+  if(!DB.settings.installHidden){
+    h += '<div class="addbar">' +
+           '<div class="ab-ic" aria-hidden="true"><span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
+           '<div><div class="ab-t">Поставьте иконку на экран телефона</div>' +
+           '<div class="muted">чтобы заходить одним касанием, а не искать ссылку</div></div>' +
+           '<button class="ab-x" data-act="hideInstall" aria-label="Скрыть">✕</button>' +
+         '</div>';
+  }
+
+  var running = st.list.filter(function(a){ return a.status === 'running'; })[0];
+  var doneUnpaid = st.list.filter(function(a){ return a.status === 'done'; })[0];
+  var next = st.list.filter(function(a){ return a.status === 'plan' && mins(a.time) + a.dur >= nowM; })[0]
+          || st.list.filter(function(a){ return a.status === 'plan'; })[0];
+
+  if(running){
+    var c = cli(running.clientId), s = svc(running.serviceId);
+    var passed = running.startedAt ? Math.round((Date.now() - running.startedAt)/60000) : 0;
+    var left = running.dur - passed;
+    h += '<div class="hero">' +
+      '<div class="badge">СЕЙЧАС ИДЁТ ПРИЁМ</div>' +
+      '<div class="h-who">' + esc(c.name) + '</div>' +
+      '<div class="h-what">' + esc(s.name) + ' · ' + rub(running.price) + '</div>' +
+      '<div class="prog-l"><span>Идёт ' + dur(Math.max(0,passed)) + ' из ' + dur(running.dur) + '</span>' +
+      '<span>' + (left > 0 ? 'осталось ' + dur(left) : 'время вышло') + '</span></div>' +
+      '<div class="prog"><div style="width:' + Math.min(100, Math.round(passed/running.dur*100)) + '%"></div></div>' +
+      '<div class="btns"><button class="btn primary" data-act="finish" data-id="' + running.id + '">Завершить приём</button></div>' +
+      '<div class="btns two"><button class="btn" data-act="extend" data-id="' + running.id + '">Продлить 15 мин</button>' +
+      '<button class="btn" data-act="cancelStart" data-id="' + running.id + '">Отменить начало</button></div>' +
+      '</div>';
+  } else if(doneUnpaid){
+    var c2 = cli(doneUnpaid.clientId);
+    h += '<div class="hero">' +
+      '<div class="badge ok">ПРИЁМ ЗАВЕРШЁН</div>' +
+      '<div class="h-who">' + esc(c2.name) + '</div>' +
+      '<div class="h-what">' + esc(svc(doneUnpaid.serviceId).name) + ' · ждёт отметки об оплате</div>' +
+      '<div class="btns"><button class="btn green" data-act="pay" data-id="' + doneUnpaid.id + '">Отметить оплату ' + rub(doneUnpaid.price) + '</button></div>' +
+      '<div class="btns two"><button class="btn" data-act="bookNext" data-id="' + doneUnpaid.clientId + '">Записать на следующий раз</button>' +
+      '<button class="btn" data-act="editCard" data-id="' + doneUnpaid.id + '">Что делали</button></div>' +
+      '</div>';
+  } else if(next){
+    var c3 = cli(next.clientId);
+    h += '<div class="hero">' +
+      '<div class="badge mut">СЛЕДУЮЩИЙ ПРИЁМ · ' + next.time + '</div>' +
+      '<div class="h-who">' + esc(c3.name) + '</div>' +
+      '<div class="h-what">' + esc(svc(next.serviceId).name) + ' · ' + dur(next.dur) + ' · ' + rub(next.price) + '</div>' +
+      '<div class="btns"><button class="btn primary" data-act="start" data-id="' + next.id + '">Начать приём</button></div>' +
+      '<div class="btns two"><button class="btn" data-act="write" data-id="' + next.clientId + '">Написать</button>' +
+      '<button class="btn" data-act="apptCard" data-id="' + next.id + '">Открыть запись</button></div>' +
+      '</div>';
+  } else {
+    h += '<div class="hero"><div class="badge mut">НА СЕГОДНЯ ВСЁ</div>' +
+      '<div class="h-who">Приёмов больше нет</div>' +
+      '<div class="h-what">Можно закрыть день и посмотреть, кого пора звать</div>' +
+      '<div class="btns"><button class="btn" data-act="tab" data-id="clients">Кого пора звать</button></div></div>';
+  }
+
+  /* лента дня */
+  h += '<div><div class="sec-t">День целиком</div>' + dayRibbon(st, next ? next.id : null) + '</div>';
+
+  /* нужно отметить */
+  var todos = buildTodos();
+  h += '<div><div class="sec-t">Нужно отметить</div><div class="list">';
+  if(!todos.length){ h += '<div class="empty">Всё отмечено</div>'; }
+  todos.forEach(function(t){
+    h += '<button class="todo" data-act="' + t.act + '" data-id="' + t.id + '">' +
+           '<span class="mk" style="background:' + t.color + '"></span>' +
+           '<span><span style="font-size:14px;font-weight:600">' + esc(t.title) + '</span>' +
+           '<div class="muted">' + esc(t.sub) + '</div></span>' +
+           '<span class="act">' + t.action + '</span>' +
+         '</button>';
+  });
+  h += '</div></div>';
+
+  /* цифры */
+  h += '<div class="card"><div class="sec-t">День в цифрах</div><div class="stats">' +
+       '<div class="stat"><span>Записей</span><b>' + st.count + '</b></div>' +
+       '<div class="stat"><span>Занято</span><b>' + dur(st.busy) + '</b></div>' +
+       '<div class="stat"><span>Ожидается</span><b>' + rub(st.expect) + '</b></div>' +
+       '<div class="stat"><span>Получено</span><b>' + rub(st.got) + '</b></div>' +
+       '</div>' +
+       '<div class="hintline">Свободных окон: ' + st.free.length +
+       (st.free.length ? ' — ' + st.free.map(function(f){ return hhmm(f.from) + '–' + hhmm(f.to); }).join(', ') : '') +
+       (st.count ? '. Работа заканчивается в ' + hhmm(st.endsAt) + '.' : '.') +
+       '</div></div>';
+
+  if(dayIsOver(st)){
+    h += '<div class="card" style="margin-top:14px">' +
+         '<div class="sec-t">Закрыть день</div>' +
+         '<div style="font-size:13.5px;line-height:1.5">Сегодня было ' + st.count +
+           (st.count === 1 ? ' запись' : (st.count >= 2 && st.count <= 4 ? ' записи' : ' записей')) +
+           '. Что из материалов закончилось?</div>' +
+         '<div class="btns"><button class="btn primary" data-act="closeDay">Отметить, что закончилось</button></div>' +
+         '<div class="hintline">Спрошу один раз в день. Так остаток не приходится ловить в момент, ' +
+           'когда туба опустела.</div></div>';
+  }
+
+  $('topTitle').textContent = 'Сегодня';
+  $('topSub').textContent = longDate(d);
+  return h;
+}
+
+/* Вечерний вопрос о материалах. Показывается один раз в день — когда все приёмы
+   отмечены или рабочий день кончился. Так мастеру не нужно ловить момент,
+   в который кончилась краска: он отвечает один раз, когда уже не в работе. */
+function dayIsOver(st){
+  if(!DB.stock.length) return false;
+  if(DB.settings.stockAskedOn === today()) return false;
+  if(!st.count) return false;
+  var open = st.list.filter(function(a){ return a.status !== 'paid'; }).length;
+  var now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
+  return open === 0 || nowM >= mins(DB.settings.workEnd);
+}
+
+function closeDaySheet(){
+  var h = '<div class="note">Отметьте касанием то, что закончилось за сегодня. ' +
+          'У отмеченного остаток уменьшится на единицу.</div>' +
+          '<div class="list">' +
+          DB.stock.map(function(m){
+            return '<button type="button" class="item plain pick" data-act="pickOut" data-id="' + m.id + '">' +
+                   '<div><div class="i-who">' + esc(m.name) + '</div>' +
+                   '<div class="i-what">осталось ' + m.qty + ' ' + esc(unitOf(m.qty, m.unit)) + ' · норма ' + m.min + '</div></div>' +
+                   '<div class="i-sum tick">✓</div></button>';
+          }).join('') + '</div>';
+  OUT_PICKED = {};
+  openSheet('Что закончилось?', h,
+    '<button class="btn primary" data-act="closeDaySave">Готово</button>' +
+    '<button class="btn ghost" data-act="closeDayNothing">Ничего не закончилось</button>');
+}
+
+var OUT_PICKED = {};
+
+function buildTodos(){
+  var out = [];
+  DB.appts.filter(function(a){ return a.status === 'done'; })
+          .sort(byTime).forEach(function(a){
+    out.push({ act:'pay', id:a.id, color:'var(--stop)', title:cli(a.clientId).name,
+               sub: (a.date < today() ? 'приём ' + shortDate(a.date) + ', ' : '') +
+                    'не отмечена оплата, ' + rub(a.price), action:'отметить' });
+  });
+  /* аллергопроба перед первым окрашиванием идёт раньше подтверждений и звонков:
+     без неё приём проводить нельзя */
+  var seen = {};
+  DB.appts.filter(function(a){
+    return a.status === 'plan' && a.date >= today() && isColor(a);
+  }).sort(byTime).forEach(function(a){
+    if(seen[a.clientId]) return;
+    var c = cli(a.clientId);
+    if(!needAllergy(c)) return;
+    seen[a.clientId] = 1;
+    out.push({ act:'allergy', id:c.id, color:'var(--warn)', title:c.name,
+               sub:'первое окрашивание ' + shortDate(a.date) + ', аллергопроба не отмечена',
+               action:'отметить' });
+  });
+  /* прошедшие записи, которые так и не начали — иначе их нигде не видно */
+  DB.appts.filter(function(a){ return a.status === 'plan' && a.date < today(); })
+          .sort(byTime).forEach(function(a){
+    out.push({ act:'apptCard', id:a.id, color:'var(--warn)', title:cli(a.clientId).name,
+               sub:'запись ' + shortDate(a.date) + ' осталась неотмеченной', action:'открыть' });
+  });
+  /* завтрашние записи без напоминания и будущие без подтверждения:
+     иначе про них вспоминают только когда клиент не пришёл */
+  var tmr = shiftDays(today(), 1);
+  DB.appts.filter(function(a){ return a.status === 'plan' && a.date === tmr && !a.sentRemind; })
+          .sort(byTime).forEach(function(a){
+    out.push({ act:'sendRemind', id:a.id, color:'var(--warn)', title:cli(a.clientId).name,
+               sub:'завтра в ' + a.time + ', напоминание не отправлено', action:'напомнить' });
+  });
+  /* Клиенты, которых пора звать, идут раньше неподтверждённых записей:
+     клиент без записи — это уже потерянный приём, неподтверждённая запись —
+     пока только риск. */
+  DB.clients.forEach(function(c){
+    if(!lastVisit(c.id)) return;
+    /* клиент в кресле или с будущей записью в списке звонков быть не должен */
+    var future = DB.appts.filter(function(a){
+      return a.clientId === c.id && a.status !== 'cancel' && a.date >= today();
+    }).length;
+    if(future) return;
+    var d = dueInfo(c);
+    if(d.level === 2){
+      out.push({ act:'write', id:c.id, color:'var(--ok)', title:c.name,
+                 sub:d.text, action:'написать' });
+    }
+  });
+  /* не больше трёх неподтверждённых разом, иначе перечень вытеснит всё остальное */
+  DB.appts.filter(function(a){
+    return a.status === 'plan' && a.date > tmr && !a.sentConfirm;
+  }).sort(byTime).slice(0, 3).forEach(function(a){
+    out.push({ act:'sendConfirm', id:a.id, color:'var(--stop)', title:cli(a.clientId).name,
+               sub:'запись ' + shortDate(a.date) + ', ' + a.time + ' не подтверждена', action:'подтвердить' });
+  });
+  DB.stock.filter(function(m){ return m.qty <= m.min && !m.ordered; }).forEach(function(m){
+    out.push({ act:'orderStock', id:m.id, color:'var(--warn)', title:m.name,
+               sub:'осталось ' + m.qty + ' ' + unitOf(m.qty, m.unit) + ', запас ниже нормы', action:'заказать' });
+  });
+  /* десять строк — предел, за которым перечень перестают читать */
+  return out.slice(0, 10);
+}
+
+/* ================= экран «Клиенты» ================= */
+function renderClients(){
+  var q = (VIEW.q || '').toLowerCase();
+  var list = DB.clients.slice().filter(function(c){ return !q || c.name.toLowerCase().indexOf(q) >= 0; });
+  list.sort(function(a, b){
+    var da = dueInfo(a), db2 = dueInfo(b);
+    if(db2.level !== da.level) return db2.level - da.level;
+    return a.name > b.name ? 1 : -1;
+  });
+  var h = '<div class="field" style="margin:0"><input class="inp" id="cq" placeholder="Поиск по имени" value="' + esc(VIEW.q || '') + '"></div>';
+  h += '<button class="btn wide" data-act="addClient">+ Новый клиент</button>';
+  h += '<div class="list">';
+  if(!list.length) h += '<div class="empty">Никого не нашлось</div>';
+  list.forEach(function(c){
+    var d = dueInfo(c);
+    var col = d.level === 2 ? 'var(--stop)' : d.level === 1 ? 'var(--warn)' : 'var(--line)';
+    h += '<button class="todo" data-act="clientCard" data-id="' + c.id + '">' +
+           '<span class="mk" style="background:' + col + '"></span>' +
+           '<span><span style="font-size:14.5px;font-weight:600">' + esc(c.name) + '</span>' +
+           '<div class="muted">' + esc(d.text) + '</div></span>' +
+           '<span class="act">открыть</span>' +
+         '</button>';
+  });
+  h += '</div>';
+  $('topTitle').textContent = 'Клиенты';
+  $('topSub').textContent = DB.clients.length + ' всего';
+  return h;
+}
+
+/* ================= экран «Записи» =================
+   Одно и то же расписание в четырёх видах: день, неделя, месяц и список
+   того, что впереди. Вид и выбранная дата держатся в VIEW и не сбрасываются,
+   пока мастер не уйдёт на другую вкладку. */
+
+function periodBar(title, sub, back){
+  return '<div class="per">' +
+    '<button class="nav" data-act="apptPrev" aria-label="Назад">‹</button>' +
+    '<div class="ttl">' + esc(title) + (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
+    '<button class="nav" data-act="apptNext" aria-label="Вперёд">›</button>' +
+    '</div>' +
+    (back ? '<button class="btn sm wide" data-act="apptNow">' + esc(back) + '</button>' : '');
+}
+
+function periodStats(list, label){
+  var busy = 0, expect = 0, got = 0;
+  list.forEach(function(a){
+    busy += a.dur; expect += a.price;
+    if(a.status === 'paid') got += a.price;
+  });
+  return '<div class="card"><div class="sec-t">' + esc(label) + '</div><div class="stats">' +
+    '<div class="stat"><span>Записей</span><b>' + list.length + '</b></div>' +
+    '<div class="stat"><span>Занято</span><b>' + dur(busy) + '</b></div>' +
+    '<div class="stat"><span>Ожидается</span><b>' + rub(expect) + '</b></div>' +
+    '<div class="stat"><span>Получено</span><b>' + rub(got) + '</b></div>' +
+    '</div></div>';
+}
+
+function viewDay(d){
+  var st = dayStats(d);
+  var h = periodBar(longDate(d), st.count ? 'работа до ' + hhmm(st.endsAt) : 'записей нет',
+                    d === today() ? '' : 'Вернуться к сегодняшнему дню');
+  h += dayRibbon(st, null, 'В этот день записей нет');
+  h += periodStats(st.list, 'День в цифрах');
+  return h;
+}
+
+function viewWeek(d){
+  var ws = weekStart(d), we = shiftDays(ws, 6);
+  var p1 = ws.split('-'), p2 = we.split('-');
+  var title = (p1[1] === p2[1])
+    ? (+p1[2]) + '–' + (+p2[2]) + ' ' + MONTHS[+p1[1]-1]
+    : shortDate(ws) + ' – ' + shortDate(we);
+  var all = [];
+  var h = periodBar(title, 'неделя целиком',
+                    weekStart(today()) === ws ? '' : 'Вернуться к этой неделе');
+  h += '<div class="list">';
+  /* самый долгий день недели задаёт длину полоски загрузки: сравнение
+     идёт между днями, а не с абстрактной нормой */
+  var stats = [], maxBusy = 1;
+  for(var i = 0; i < 7; i++){
+    var dd = shiftDays(ws, i), s = dayStats(dd);
+    stats.push([dd, s]);
+    if(s.busy > maxBusy) maxBusy = s.busy;
+    all = all.concat(s.list);
+  }
+  stats.forEach(function(x){
+    var dd = x[0], s = x[1], p = dd.split('-');
+    var wd = new Date(+p[0], +p[1]-1, +p[2]).getDay();
+    var sum = s.list.reduce(function(a, b){ return a + b.price; }, 0);
+    h += '<button class="wk' + (dd === today() ? ' now' : '') + '" data-act="apptDay" data-id="' + dd + '">' +
+         '<div class="dt">' + WDAYS_SHORT[wd] + '<b>' + (+p[2]) + '</b></div>' +
+         '<div><div class="i-who">' + (s.count
+            ? s.count + (s.count === 1 ? ' запись' : (s.count >= 2 && s.count <= 4 ? ' записи' : ' записей'))
+            : 'Свободно') + '</div>' +
+         (s.count
+            ? '<div class="i-what">' + s.list[0].time + '–' + hhmm(s.endsAt) + ' · ' + dur(s.busy) + '</div>' +
+              '<div class="load"><div style="width:' + Math.round(s.busy / maxBusy * 100) + '%"></div></div>'
+            : '<div class="i-what">записей нет</div>') +
+         '</div>' +
+         '<div class="i-sum">' + (s.count ? rub(sum) : '') + '</div>' +
+         '</button>';
+  });
+  h += '</div>';
+  h += periodStats(all, 'Неделя в цифрах');
+  return h;
+}
+
+function viewMonth(d){
+  var ms = monthStart(d), n = daysInMonth(ms), p = ms.split('-');
+  var firstWd = (new Date(+p[0], +p[1]-1, 1).getDay() + 6) % 7;
+  var h = periodBar(monthName(ms), 'месяц целиком',
+                    monthStart(today()) === ms ? '' : 'Вернуться к этому месяцу');
+  h += '<div class="cal">';
+  ['пн','вт','ср','чт','пт','сб','вс'].forEach(function(w){ h += '<div class="hd">' + w + '</div>'; });
+  for(var i = 0; i < firstWd; i++) h += '<div class="cell out"></div>';
+  var all = [];
+  for(var day = 1; day <= n; day++){
+    var dd = p[0] + '-' + p[1] + '-' + pad(day);
+    var list = apptsOn(dd);
+    all = all.concat(list);
+    var dots = '';
+    if(list.length){
+      dots = '<div class="dots">' +
+        (list.length > 3 ? '<u>' + list.length + '</u>'
+                         : new Array(list.length + 1).join('<i></i>')) + '</div>';
+    } else {
+      dots = '<div class="dots"></div>';
+    }
+    h += '<button class="cell' + (list.length ? ' has' : '') + (dd === today() ? ' now' : '') +
+         '" data-act="apptDay" data-id="' + dd + '">' +
+         '<span>' + day + '</span>' + dots + '</button>';
+  }
+  h += '</div>';
+  h += '<div class="hintline">Касание по числу открывает этот день целиком.</div>';
+  h += periodStats(all, 'Месяц в цифрах');
+  return h;
+}
+
+function viewList(){
+  var future = DB.appts.filter(function(a){
+    return a.date >= today() && a.status !== 'cancel';
+  }).sort(byTime);
+  var h = '<div class="list">';
+  if(!future.length) h += '<div class="empty">Впереди записей нет</div>';
+  var lastDate = '';
+  future.forEach(function(a){
+    if(a.date !== lastDate){
+      lastDate = a.date;
+      h += '<div class="sec-t" style="margin:10px 0 2px">' +
+           (a.date === today() ? 'Сегодня, ' + shortDate(a.date) : longDate(a.date)) + '</div>';
+    }
+    /* сегодняшние записи подтверждать поздно — метка только для будущих дней */
+    var mark = '';
+    if(a.status === 'plan' && a.date > today()){
+      mark = a.sentConfirm
+        ? '<span class="tag green">подтверждена</span>'
+        : '<span class="tag red">не подтверждена</span>';
+    }
+    if(isColor(a) && needAllergy(cli(a.clientId))){
+      mark += ' <span class="tag amber">нет аллергопробы</span>';
+    }
+    h += '<button class="item" data-act="apptCard" data-id="' + a.id + '">' +
+           '<div class="i-time">' + a.time + '</div>' +
+           '<div><div class="i-who">' + esc(cli(a.clientId).name) + '</div>' +
+           '<div class="i-what">' + esc(svc(a.serviceId).name) + '</div>' + mark + '</div>' +
+           '<div class="i-sum">' + rub(a.price) + '<div class="muted">' + dur(a.dur) + '</div></div>' +
+         '</button>';
+  });
+  return h + '</div>';
+}
+
+var APPT_MODES = [['day','День'], ['week','Неделя'], ['month','Месяц'], ['list','Список']];
+
+function renderAppts(){
+  var mode = VIEW.mode || 'week';
+  var d = VIEW.date || today();
+  var h = '<button class="btn primary wide" data-act="addAppt">+ Новая запись</button>';
+  h += '<div class="seg">' + APPT_MODES.map(function(m){
+    return '<button' + (mode === m[0] ? ' class="on"' : '') +
+           ' data-act="apptMode" data-id="' + m[0] + '">' + m[1] + '</button>';
+  }).join('') + '</div>';
+
+  var sub;
+  if(mode === 'day'){ h += viewDay(d); sub = 'расписание на день'; }
+  else if(mode === 'week'){ h += viewWeek(d); sub = 'расписание на неделю'; }
+  else if(mode === 'month'){ h += viewMonth(d); sub = 'расписание на месяц'; }
+  else {
+    h += viewList();
+    var cnt = DB.appts.filter(function(a){ return a.date >= today() && a.status !== 'cancel'; }).length;
+    sub = cnt + ' впереди';
+  }
+  $('topTitle').textContent = 'Записи';
+  $('topSub').textContent = sub;
+  return h;
+}
+
+/* ================= экран «Материалы» ================= */
+function renderStock(){
+  var h = '<button class="btn wide" data-act="addStock">+ Новый материал</button><div class="list">';
+  DB.stock.forEach(function(m){
+    var low = m.qty <= m.min;
+    h += '<div class="todo">' +
+           '<span class="mk" style="background:' + (low ? 'var(--warn)' : 'var(--line)') + '"></span>' +
+           '<span><span style="font-size:14px;font-weight:600">' + esc(m.name) + '</span>' +
+           '<div class="muted">осталось ' + m.qty + ' ' + esc(unitOf(m.qty, m.unit)) + ' · норма ' + m.min +
+           (m.ordered ? ' · заказано' : '') + '</div></span>' +
+           '<span style="display:flex;gap:6px">' +
+             '<button class="btn sm" data-act="stockMinus" data-id="' + m.id + '">−1</button>' +
+             '<button class="btn sm" data-act="stockPlus" data-id="' + m.id + '">+1</button>' +
+           '</span>' +
+         '</div>';
+  });
+  h += '</div>';
+  h += '<div class="hintline">Сколько граммов краски ушло на работу, записывается в самой работе — ' +
+       'поле «Расход краски». В тубы это не пересчитывается: остаток уменьшается вечером, ' +
+       'когда вы отмечаете, что закончилось.</div>';
+
+  h += '<div><div class="sec-t">Дезинфекция инструмента</div>' +
+       '<button class="btn wide" data-act="addClean">+ Записать дезинфекцию</button><div class="list" style="margin-top:8px">';
+  var jr = DB.clean.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).slice(0, 8);
+  if(!jr.length) h += '<div class="empty">Записей нет</div>';
+  jr.forEach(function(j){
+    h += '<div class="item plain"><div><div class="i-who">' + esc(j.kind) + ', ' + j.count + ' шт.</div>' +
+         '<div class="i-what">' + shortDate(j.date) + (j.note ? ' · ' + esc(j.note) : '') + '</div></div>' +
+         '<div class="i-sum"></div></div>';
+  });
+  h += '</div></div>';
+  $('topTitle').textContent = 'Материалы';
+  $('topSub').textContent = DB.stock.filter(function(m){ return m.qty <= m.min; }).length + ' ниже нормы';
+  return h;
+}
+
+/* ================= экран «Ещё» ================= */
+function renderMore(){
+  var h = '<div class="list">';
+  [['Заметки голосом','notes'], ['Процедуры и цены','services'], ['Деньги и отчёты','money'],
+   ['Качество работы','quality'], ['Иконка на телефоне','install'],
+   ['Резервная копия','backup'], ['Настройки','settings']].forEach(function(p){
+    h += '<button class="item plain" data-act="page" data-id="' + p[1] + '">' +
+         '<div class="i-who">' + p[0] + '</div><div class="i-sum">›</div></button>';
+  });
+  h += '</div>';
+  $('topTitle').textContent = 'Ещё';
+  $('topSub').textContent = '';
+  return h;
+}
+
+/* ================= разделы внутри «Ещё» ================= */
+/* ================= заметки =================
+   Между делом мастеру нужно записать не формулу и не запись, а мысль:
+   что клиент просил, что купить, чем кончилась переделка. Печатать это
+   некогда, поэтому здесь та же кнопка микрофона, что и в формуле. */
+function noteLine(n){
+  var who = n.clientId ? cli(n.clientId).name : 'без клиента';
+  var txt = String(n.text || '');
+  return '<button class="item plain" data-act="editNote" data-id="' + n.id + '">' +
+    '<div><div class="i-who">' + esc(who) + '</div>' +
+    '<div class="i-what">' + esc(txt.length > 90 ? txt.slice(0, 90) + '…' : txt) + '</div></div>' +
+    '<div class="i-sum">' + shortDate(n.date) + '</div></button>';
+}
+
+function pageNotes(){
+  var list = DB.notes.slice().sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+  var h = '<div class="note">Наговорите что угодно: пожелание клиента, формулу, что купить. ' +
+    'Кабинет сохранит текст как есть и покажет заметку в карточке клиента.</div>' +
+    '<button class="btn primary wide" data-act="addNote">+ Новая заметка</button>' +
+    '<div class="list" style="margin-top:10px">';
+  if(!list.length) h += '<div class="empty">Заметок пока нет</div>';
+  list.forEach(function(n){ h += noteLine(n); });
+  h += '</div>';
+  openSheet('Заметки', h, '<button class="btn" data-act="closeSheet">Закрыть</button>');
+}
+
+/* Блок записи голосом целиком: поле, кнопка микрофона и подсказка.
+   Один и тот же и в формуле, и в заметке — мастер учится ему один раз. */
+function voiceBlock(label, placeholder, value){
+  return '<div class="field"><label class="lab">' + esc(label) + '</label>' +
+    '<textarea class="inp" id="story" placeholder="' + esc(placeholder) + '">' +
+    esc(value || '') + '</textarea>' +
+    (voiceReady()
+      ? '<button class="btn sm wide" style="margin-top:10px" id="micBtn" data-act="voice">' +
+          '<span class="mic-dot"></span>Записать голосом</button>' +
+        '<div class="hintline" id="micHint">Говорите обычным голосом, можно с паузами. ' +
+        'Текст появится в поле, дальше его можно поправить.</div>'
+      : '<div class="hintline">' + esc(voiceWhyNot()) + '</div>') +
+    '</div>';
+}
+
+function formNote(id, preClient){
+  var n = id ? DB.notes.filter(function(x){ return x.id === id; })[0] : null;
+  var cur = n ? n.clientId : (preClient || '');
+  var opts = '<option value="">без клиента</option>' + DB.clients.map(function(c){
+    return '<option value="' + c.id + '"' + (c.id === cur ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+  }).join('');
+  var h = '<div class="field"><label class="lab">Кого касается</label>' +
+      '<select class="inp" id="nt_client">' + opts + '</select></div>' +
+    voiceBlock('Расскажите свободно',
+      'Например: Ирина просила в следующий раз на полтона темнее, седину закрывает хуже, держать сорок минут',
+      n ? n.text : '') +
+    '<button class="btn sm wide" data-act="noteParse">Проверить, слышу ли формулу</button>' +
+    '<div id="parsed"></div>' +
+    '<div class="hintline" style="margin-top:8px">Заметка ничего не меняет в записях — это просто ' +
+    'память. Формулу приёма записывают в самом приёме, кнопкой «Что делали».</div>';
+  var foot = '<button class="btn primary" data-act="saveNote" data-id="' + (id || '') + '">Сохранить</button>';
+  if(id) foot += '<button class="btn" data-act="delNote" data-id="' + id + '">Удалить</button>';
+  foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
+  openSheet(id ? 'Заметка' : 'Новая заметка', h, foot);
+}
+
+/* Показ того, что кабинет расслышал в надиктованном. Ничего не сохраняет:
+   мастеру важно один раз увидеть, что формулу можно не печатать. */
+function noteParsed(text){
+  var box = $('parsed'); if(!box) return;
+  if(!text.trim()){
+    box.innerHTML = '<div class="card" style="margin-top:10px"><div style="font-size:13px">' +
+      'Сначала расскажите или продиктуйте.</div></div>';
+    return;
+  }
+  var r = parseStory(text);
+  var names = { brand:'Бренд', rootTone:'Тон корней', lenTone:'Тон длины', oxide:'Оксид',
+                ratio:'Пропорция', hold:'Выдержка', grams:'Расход краски', zones:'Зоны',
+                tech:'Техника', bleach:'Осветление', toneAfter:'Тонирование после',
+                before:'Что было до', result:'Результат' };
+  var rows = CARD_FIELDS.filter(function(f){ return r.card[f]; }).map(function(f){
+    return esc(names[f]) + ': ' + esc(r.card[f] + (f === 'hold' ? ' мин' : ''));
+  });
+  if(r.rootsDays != null) rows.push('Корни отросли через ' + days(r.rootsDays));
+  if(r.toneDays != null) rows.push('Тон вымылся через ' + days(r.toneDays));
+  if(r.complaint) rows.push('Жалоба: ' + esc(r.complaint));
+  box.innerHTML = rows.length
+    ? '<div class="card" style="margin-top:10px;background:var(--tint);border-color:var(--tintline)">' +
+      '<div class="sec-t">Кабинет расслышал</div>' +
+      '<div style="font-size:13px;line-height:1.7">' + rows.join('<br>') + '</div>' +
+      '<div class="hintline">Столько же он разберёт и в приёме, если продиктовать это в «Что делали».</div></div>'
+    : '<div class="card" style="margin-top:10px"><div style="font-size:13px">' +
+      'Формулы здесь нет — заметка сохранится как обычный текст.</div></div>';
+}
+
+function pageServices(){
+  var KIND = { color:'окрашивание', cut:'стрижка', care:'уход' };
+  var h = '<div class="list">';
+  DB.services.forEach(function(s){
+    h += '<div class="item plain"><div><div class="i-who">' + esc(s.name) + '</div>' +
+         '<div class="i-what">' + dur(s.dur) + ' · ' + (KIND[s.kind] || 'уход') + '</div></div>' +
+         '<div class="i-sum">' + rub(s.price) + '</div></div>';
+  });
+  h += '</div>';
+  h += '<div class="hintline">Род процедуры нужен для двух вещей: после окрашивания кабинет ' +
+       'отсчитывает срок до отросших корней, после стрижки — срок до следующей стрижки.</div>';
+  openSheet('Процедуры и цены', h, '<button class="btn" data-act="closeSheet">Закрыть</button>');
+}
+
+function pageMoney(){
+  var t = today(), from = shiftDays(t, -30);
+  var paid = DB.appts.filter(function(a){ return a.status === 'paid' && a.date >= from && a.date <= t; });
+  var sum = 0, byService = {};
+  paid.forEach(function(a){
+    sum += a.price;
+    var n = svc(a.serviceId).name;
+    byService[n] = (byService[n] || 0) + a.price;
+  });
+  var wait = DB.appts.filter(function(a){ return a.status === 'done'; })
+                     .reduce(function(s, a){ return s + a.price; }, 0);
+  var h = '<div class="card"><div class="sec-t">За 30 дней</div><div class="stats">' +
+    '<div class="stat"><span>Приёмов</span><b>' + paid.length + '</b></div>' +
+    '<div class="stat"><span>Получено</span><b>' + rub(sum) + '</b></div>' +
+    '<div class="stat"><span>Средний чек</span><b>' + rub(paid.length ? Math.round(sum/paid.length) : 0) + '</b></div>' +
+    '<div class="stat"><span>Ждёт оплаты</span><b>' + rub(wait) + '</b></div>' +
+    '</div></div>';
+  var rows = Object.keys(byService).sort(function(a, b){ return byService[b] - byService[a]; });
+  h += '<div class="card" style="margin-top:12px"><div class="sec-t">По процедурам</div>';
+  if(!rows.length) h += '<div class="empty">Оплаченных приёмов пока нет</div>';
+  rows.forEach(function(n){
+    h += '<div class="stat" style="margin-bottom:7px"><span>' + esc(n) + '</span><b>' + rub(byService[n]) + '</b></div>';
+  });
+  h += '</div>';
+  openSheet('Деньги и отчёты', h, '<button class="btn" data-act="closeSheet">Закрыть</button>');
+}
+
+/* Отчёт колориста. Считает по формулам и по двум срокам: через сколько
+   отросли корни и через сколько вымылся тон. По первому видно, когда звать
+   на коррекцию, по второму — какие формулы держатся. */
+function pageQuality(){
+  function avg(field){
+    var l = DB.appts.filter(function(a){ return a[field] != null && a[field] !== ''; });
+    if(!l.length) return null;
+    return Math.round(l.reduce(function(s, a){ return s + (+a[field]); }, 0) / l.length);
+  }
+  var avgRoots = avg('rootsDays'), avgTone = avg('toneDays');
+  var withForm = DB.appts.filter(function(a){
+    return a.card && (a.card.brand || a.card.rootTone || a.card.lenTone);
+  });
+  var complaints = DB.appts.filter(function(a){ return a.complaint; });
+  var redo = DB.appts.filter(function(a){ return a.redo; }).length;
+
+  var tones = {}, brands = {};
+  DB.appts.forEach(function(a){
+    var k = a.card || {};
+    [k.rootTone, k.lenTone].forEach(function(v){
+      v = (v || '').trim(); if(v) tones[v] = (tones[v] || 0) + 1;
+    });
+    var b = (k.brand || '').trim(); if(b) brands[b] = (brands[b] || 0) + 1;
+  });
+  function top(obj, n){
+    return Object.keys(obj).sort(function(a, b){ return obj[b] - obj[a] || (a < b ? -1 : 1); }).slice(0, n);
+  }
+
+  /* Краски без движения: тон из названия материала не встречался в формулах
+     за последние три месяца. Списывать за мастера кабинет не берётся —
+     он только показывает, что лежит зря. */
+  var since = shiftDays(today(), -90), usedTones = {};
+  DB.appts.forEach(function(a){
+    if(a.date < since) return;
+    var k = a.card || {};
+    [k.rootTone, k.lenTone].forEach(function(v){ v = (v || '').trim(); if(v) usedTones[v] = 1; });
+  });
+  var idle = DB.stock.filter(function(m){
+    if(!/краск/i.test(m.name)) return false;
+    var t = m.name.match(/(\d{1,2}[.,]\d{1,3})/);
+    if(!t) return false;
+    return !usedTones[t[1].replace(',', '.')];
+  });
+
+  /* два срока стоят на всю ширину: подписи у них длинные и в два столбца
+     ломаются пополам */
+  var h = '<div class="card"><div class="stats" style="grid-template-columns:1fr">' +
+    '<div class="stat"><span>Корни отрастают за</span><b>' + (avgRoots ? days(avgRoots) : '—') + '</b></div>' +
+    '<div class="stat"><span>Тон держится</span><b>' + (avgTone ? days(avgTone) : '—') + '</b></div>' +
+    '</div><div class="stats" style="margin-top:8px">' +
+    '<div class="stat"><span>С жалобой</span><b>' + complaints.length + '</b></div>' +
+    '<div class="stat"><span>Переделок</span><b>' + redo + '</b></div>' +
+    '<div class="stat"><span>С формулой</span><b>' + withForm.length + '</b></div>' +
+    '</div></div>';
+
+  var tt = top(tones, 5);
+  h += '<div class="card" style="margin-top:12px"><div class="sec-t">Ходовые тоны</div>';
+  if(!tt.length) h += '<div class="empty">Пока не из чего считать</div>';
+  tt.forEach(function(v){
+    h += '<div class="stat" style="margin-bottom:7px"><span>' + esc(v) + '</span><b>' + tones[v] + '</b></div>';
+  });
+  h += '</div>';
+
+  var tb = top(brands, 5);
+  h += '<div class="card" style="margin-top:12px"><div class="sec-t">Ходовые бренды</div>';
+  if(!tb.length) h += '<div class="empty">Пока не из чего считать</div>';
+  tb.forEach(function(v){
+    h += '<div class="stat" style="margin-bottom:7px"><span>' + esc(v) + '</span><b>' + brands[v] + '</b></div>';
+  });
+  h += '</div>';
+
+  if(complaints.length){
+    var byC = {};
+    complaints.forEach(function(a){ byC[a.complaint] = (byC[a.complaint] || 0) + 1; });
+    h += '<div class="card" style="margin-top:12px"><div class="sec-t">На что жаловались</div>';
+    top(byC, 6).forEach(function(v){
+      h += '<div class="stat" style="margin-bottom:7px"><span>' + esc(v) + '</span><b>' + byC[v] + '</b></div>';
+    });
+    h += '</div>';
+  }
+
+  h += '<div class="card" style="margin-top:12px"><div class="sec-t">Краски без движения</div>';
+  if(!idle.length) h += '<div class="empty">Всё, что лежит, за три месяца пригодилось</div>';
+  idle.forEach(function(m){
+    h += '<div class="stat" style="margin-bottom:7px"><span>' + esc(m.name) + '</span><b>' +
+         m.qty + ' ' + esc(unitOf(m.qty, m.unit)) + '</b></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="hintline" style="margin-top:10px">Сроки считаются по тем работам, где на следующем ' +
+       'визите записали, через сколько дней отросли корни и через сколько вымылся тон. ' +
+       'Оба числа вписываются в «Что делали».</div>';
+  openSheet('Качество работы', h, '<button class="btn" data-act="closeSheet">Закрыть</button>');
+}
+
+function pageInstall(){
+  var h =
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:9px;margin-bottom:16px">' +
+      '<div style="width:88px;height:88px;border-radius:21px;background:var(--panel);display:flex;' +
+        'flex-direction:column;align-items:center;justify-content:center;color:var(--p-ink);' +
+        'font-size:13px;font-weight:700;line-height:1.25;letter-spacing:.02em">' +
+        '<span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
+      '<div style="font-size:13px">Точка красоты. Волосы</div>' +
+      '<div class="muted" style="text-align:center">Так кабинет выглядит на экране телефона. Открывается на весь экран, без адресной строки браузера.</div>' +
+    '</div>' +
+    '<div class="card"><div class="sec-t">Android, браузер Chrome</div>' +
+      '<div style="font-size:13px;line-height:1.6">1. Открыть кабинет по ссылке<br>2. Нажать три точки в правом верхнем углу<br>3. Выбрать «Добавить на главный экран»</div></div>' +
+    '<div class="card" style="margin-top:12px"><div class="sec-t">iPhone, браузер Safari</div>' +
+      '<div style="font-size:13px;line-height:1.6">1. Открыть кабинет именно в Safari<br>2. Нажать квадрат со стрелкой вверх на нижней панели<br>3. Пролистать список и выбрать «На экран “Домой”»</div></div>' +
+    '<div class="card" style="margin-top:12px;background:var(--tint);border-color:var(--tintline)">' +
+      '<div style="font-size:12.5px;line-height:1.55">Условие одно: кабинет должен открываться по адресу в интернете. С файла, скачанного в память телефона, иконку поставить нельзя.</div></div>';
+  openSheet('Иконка на телефоне', h,
+    '<button class="btn" data-act="showInstall">Вернуть подсказку на экран «Сегодня»</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Закрыть</button>');
+}
+
+function pageBackup(){
+  var lb = DB.settings.lastBackup;
+  var stale = !lb || daysBetween(lb, today()) >= 7;
+  var h = '<div class="card"><div style="font-size:13px;line-height:1.55">' +
+    'Все записи лежат в памяти браузера этого телефона. Если очистить данные браузера или сменить телефон — они пропадут. ' +
+    'Раз в неделю сохраняйте копию и кладите файл в папку, которая синхронизируется с облаком.</div>' +
+    '<div class="muted" style="margin-top:10px">' +
+    (lb ? 'Последняя копия: ' + shortDate(lb) + (stale ? ' — пора сделать новую' : '') : 'Копию ещё не делали') +
+    '</div></div>' +
+    '<div class="note">Формулы окрашивания — самое ценное, что здесь есть: восстановить их больше не по чему. ' +
+    'Копия защищает в первую очередь их.</div>';
+  openSheet('Резервная копия', h,
+    '<button class="btn primary" data-act="doBackup">Сохранить копию</button>' +
+    '<button class="btn" data-act="doRestore">Загрузить копию из файла</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Закрыть</button>');
+}
+
+function pageSettings(){
+  var s = DB.settings;
+  var h =
+    '<div class="field"><label class="lab">Начало рабочего дня</label>' +
+      '<input class="inp" id="setStart" type="time" value="' + s.workStart + '"></div>' +
+    '<div class="field"><label class="lab">Конец рабочего дня</label>' +
+      '<input class="inp" id="setEnd" type="time" value="' + s.workEnd + '"></div>' +
+    '<div class="hintline">По этим границам считаются свободные окна на экране «Сегодня». ' +
+    'Сложное окрашивание идёт три-четыре часа, поэтому конец дня лучше ставить с запасом.</div>' +
+    '<div class="field" style="margin-top:14px"><label class="lab">Адрес приёма</label>' +
+      '<input class="inp" id="setPlace" value="' + esc(s.place || '') + '" placeholder="улица, дом, квартира, домофон"></div>' +
+    '<div class="hintline">Подставляется в подтверждение записи и в напоминание накануне. ' +
+    'Если оставить пустым, адрес в сообщения не попадёт.</div>' +
+    '<div class="sec-t" style="margin-top:20px">Начать заново</div>' +
+    '<div class="btns">' +
+      '<button class="btn" data-act="askWipe">Очистить все записи</button>' +
+      '<button class="btn" data-act="askDemo">Загрузить пример для показа</button>' +
+    '</div>' +
+    '<div class="hintline">Очистка удаляет клиентов, записи и формулы. Перед этим сохраните копию, ' +
+      'если записи ещё нужны.</div>';
+  openSheet('Настройки', h,
+    '<button class="btn primary" data-act="saveSettings">Сохранить</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+/* ================= карточки ================= */
+/* Формула показывается одним куском: клиент говорит «как в прошлый раз»,
+   и мастер должен прочитать всё нужное, не листая. */
+function formulaHtml(a){
+  var k = a.card || {};
+  var rows = [
+    ['Бренд', k.brand], ['Тон корней', k.rootTone], ['Тон длины', k.lenTone],
+    ['Оксид', k.oxide], ['Пропорция', k.ratio],
+    ['Выдержка', k.hold ? k.hold + ' мин' : ''], ['Расход краски', k.grams],
+    ['Зоны', k.zones], ['Техника', k.tech], ['Осветление', k.bleach],
+    ['Тонирование после', k.toneAfter], ['Что было до', k.before], ['Результат', k.result]
+  ].filter(function(r){ return r[1]; });
+  var extra = [];
+  if(a.rootsDays != null) extra.push('Корни отросли через ' + days(a.rootsDays));
+  if(a.toneDays != null) extra.push('Тон вымылся через ' + days(a.toneDays));
+  if(a.complaint) extra.push('Жалоба: ' + a.complaint);
+  if(a.redo) extra.push('Переделывали');
+  if(!rows.length && !extra.length) return '';
+  return '<div style="font-size:13px;line-height:1.7">' +
+    rows.map(function(r){ return esc(r[0]) + ': ' + esc(r[1]); }).join('<br>') +
+    (extra.length ? (rows.length ? '<br>' : '') + extra.map(esc).join('<br>') : '') +
+    '</div>';
+}
+
+function clientCard(id){
+  var c = cli(id), d = dueInfo(c);
+  var hist = DB.appts.filter(function(a){ return a.clientId === id; }).sort(byTime).reverse();
+  var last = hist.filter(function(a){
+    return a.card && (a.card.brand || a.card.rootTone || a.card.lenTone);
+  })[0];
+  var h = '<div class="card"><div class="stats" style="grid-template-columns:1fr">' +
+    '<div class="stat"><span>Телефон</span><b>' + esc(c.phone || '—') + '</b></div>' +
+    '<div class="stat"><span>Корни обновляет раз в</span><b>' + days(c.cycleRoots || 35) + '</b></div>' +
+    '<div class="stat"><span>Стрижётся раз в</span><b>' + days(c.cycleCut || 56) + '</b></div>' +
+    '<div class="stat"><span>Корни</span><b>' + esc(d.roots.text) + '</b></div>' +
+    '<div class="stat"><span>Стрижка</span><b>' + esc(d.cut.text) + '</b></div>' +
+    '<div class="stat"><span>Аллергопроба</span><b>' +
+      (c.allergy ? shortDate(c.allergy) : 'не отмечена') + '</b></div>' +
+    '</div>' + (c.note ? '<div class="muted" style="margin-top:8px">' + esc(c.note) + '</div>' : '') + '</div>';
+
+  if(needAllergy(c)){
+    h += '<div class="card" style="margin-top:12px;background:var(--tint);border-color:var(--tintline)">' +
+      '<div style="font-size:13px;line-height:1.55">Впереди первое окрашивание, а аллергопроба не отмечена. ' +
+      'Пробу ставят за 48 часов до работы — этого требует инструкция производителя краски.</div>' +
+      '<div class="btns"><button class="btn" data-act="allergy" data-id="' + c.id + '">Отметить аллергопробу</button></div></div>';
+  }
+
+  if(last){
+    h += '<div class="card" style="margin-top:12px"><div class="sec-t">Формула в прошлый раз · ' +
+      shortDate(last.date) + '</div>' + formulaHtml(last) + '</div>';
+  }
+
+  var mine = DB.notes.filter(function(n){ return n.clientId === id; })
+                     .sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+  h += '<div class="card" style="margin-top:12px"><div class="sec-t">Заметки</div>' +
+    '<button class="btn sm wide" data-act="addNote" data-id="' + c.id + '">+ Заметка голосом</button>' +
+    '<div class="list" style="margin-top:8px">';
+  if(!mine.length) h += '<div class="empty">Заметок нет</div>';
+  mine.slice(0, 5).forEach(function(n){
+    h += '<button class="item plain" data-act="editNote" data-id="' + n.id + '">' +
+         '<div><div class="i-what" style="margin-top:0">' + esc(n.text) + '</div></div>' +
+         '<div class="i-sum">' + shortDate(n.date) + '</div></button>';
+  });
+  h += '</div></div>';
+
+  h += '<div class="card" style="margin-top:12px"><div class="sec-t">История</div><div class="list">';
+  if(!hist.length) h += '<div class="empty">Приёмов не было</div>';
+  hist.slice(0, 10).forEach(function(a){
+    var mark = a.status === 'paid' ? rub(a.price)
+             : a.status === 'done' ? 'ждёт оплаты'
+             : a.status === 'running' ? 'идёт' : 'запланировано';
+    h += '<button class="item plain" data-act="apptCard" data-id="' + a.id + '">' +
+         '<div><div class="i-who">' + shortDate(a.date) + '</div>' +
+         '<div class="i-what">' + esc(svc(a.serviceId).name) + '</div></div>' +
+         '<div class="i-sum">' + mark + '</div></button>';
+  });
+  h += '</div></div>';
+
+  openSheet(c.name, h,
+    '<button class="btn primary" data-act="bookNext" data-id="' + c.id + '">Записать</button>' +
+    '<button class="btn" data-act="write" data-id="' + c.id + '">Написать</button>' +
+    '<button class="btn ghost" data-act="editClient" data-id="' + c.id + '">Изменить данные</button>');
+}
+
+function apptCard(id){
+  var a = apptById(id); if(!a) return;
+  var c = cli(a.clientId), s = svc(a.serviceId);
+  var h = '<div class="card"><div class="stats" style="grid-template-columns:1fr">' +
+    '<div class="stat"><span>Когда</span><b>' + shortDate(a.date) + ', ' + a.time + '</b></div>' +
+    '<div class="stat"><span>Процедура</span><b>' + esc(s.name) + '</b></div>' +
+    '<div class="stat"><span>Длительность</span><b>' + dur(a.dur) + '</b></div>' +
+    (a.fact && a.fact !== a.dur
+      ? '<div class="stat"><span>Кнопки нажаты через</span><b>' + dur(a.fact) + '</b></div>' : '') +
+    (a.stuck ? '<div class="stat"><span>Внимание</span><b>отмечено задним числом</b></div>' : '') +
+    '<div class="stat"><span>Стоимость</span><b>' + rub(a.price) + '</b></div>' +
+    '<div class="stat"><span>Состояние</span><b>' +
+      (a.status === 'paid' ? 'оплачено' : a.status === 'done' ? 'ждёт оплаты' :
+       a.status === 'running' ? 'идёт' : 'запланировано') + '</b></div>' +
+    (a.status === 'plan' && a.date > today()
+      ? '<div class="stat"><span>Подтверждение</span><b>' +
+        (a.sentConfirm ? 'отправлено ' + shortDate(a.sentConfirm) : 'не отправлено') + '</b></div>' +
+        (a.date === shiftDays(today(), 1)
+          ? '<div class="stat"><span>Напоминание</span><b>' +
+            (a.sentRemind ? 'отправлено' : 'не отправлено') + '</b></div>' : '')
+      : '') +
+    '</div>' + (a.note ? '<div class="muted" style="margin-top:8px">' + esc(a.note) + '</div>' : '') + '</div>';
+
+  if(isColor(a) && needAllergy(c)){
+    h += '<div class="card" style="margin-top:12px;background:var(--tint);border-color:var(--tintline)">' +
+      '<div style="font-size:13px;line-height:1.55">Первое окрашивание этого клиента, аллергопроба не отмечена.</div>' +
+      '<div class="btns"><button class="btn" data-act="allergy" data-id="' + c.id + '">Отметить аллергопробу</button></div></div>';
+  }
+
+  var fh = formulaHtml(a);
+  if(fh) h += '<div class="card" style="margin-top:12px"><div class="sec-t">Что делали</div>' + fh + '</div>';
+
+  var foot = '';
+  if(a.status === 'plan') foot += '<button class="btn primary" data-act="start" data-id="' + a.id + '">Начать приём</button>';
+  if(a.status === 'running') foot += '<button class="btn primary" data-act="finish" data-id="' + a.id + '">Завершить приём</button>';
+  if(a.status === 'done') foot += '<button class="btn green" data-act="pay" data-id="' + a.id + '">Отметить оплату</button>';
+  if(a.status === 'plan' && a.date > today()){
+    foot += '<button class="btn" data-act="sendConfirm" data-id="' + a.id + '">' +
+            (a.sentConfirm ? 'Отправить подтверждение ещё раз' : 'Отправить подтверждение') + '</button>';
+    if(a.date === shiftDays(today(), 1)){
+      foot += '<button class="btn" data-act="sendRemind" data-id="' + a.id + '">Напомнить о завтрашнем приёме</button>';
+    }
+  }
+  /* перенести можно и сегодняшнюю запись, пока приём не начался */
+  if(a.status === 'plan' && a.date >= today()){
+    foot += '<button class="btn" data-act="moveAppt" data-id="' + a.id + '">Перенести</button>';
+  }
+  foot += '<button class="btn" data-act="editCard" data-id="' + a.id + '">Что делали</button>';
+  foot += '<button class="btn ghost" data-act="delAppt" data-id="' + a.id + '">Удалить запись</button>';
+  openSheet(c.name, h, foot);
+}
+
+/* ================= запись голосом =================
+   Распознавание идёт средствами браузера и не уходит с устройства.
+   Работает в Chrome и Edge и только когда кабинет открыт по адресу https —
+   с файла на диске браузер микрофон не отдаёт. В Safari и Firefox кнопки нет,
+   там остаётся системная диктовка. */
+var REC = null, REC_ON = false, REC_BASE = '';
+
+function isIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function fromIcon(){
+  return navigator.standalone === true ||
+         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+function voiceReady(){
+  if(!(window.SpeechRecognition || window.webkitSpeechRecognition)) return false;
+  /* с файла на диске микрофон браузер не отдаёт */
+  var addr = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if(!addr) return false;
+  /* на iPhone, запущенном с иконки, Apple не даёт распознавание речи —
+     объект есть, но запись молча не начинается. Кнопку там не показываем */
+  if(isIOS() && fromIcon()) return false;
+  return true;
+}
+function voiceWhyNot(){
+  if(isIOS() && fromIcon()){
+    return 'Кабинет запущен с иконки. На iPhone так распознавание речи недоступно — ' +
+           'диктуйте микрофоном на клавиатуре, он работает и здесь. Кнопка записи появится, ' +
+           'если открыть кабинет по адресу в Safari.';
+  }
+  return 'Этот браузер не умеет распознавать речь сам. Диктуйте микрофоном на клавиатуре телефона, ' +
+         'на компьютере — сочетанием клавиш Win и H.';
+}
+
+function micPaint(){
+  var b = $('micBtn'); if(!b) return;
+  b.classList.toggle('rec', REC_ON);
+  b.innerHTML = '<span class="mic-dot"></span>' + (REC_ON ? 'Остановить запись' : 'Записать голосом');
+  var hint = $('micHint');
+  if(hint) hint.textContent = REC_ON
+    ? 'Слушаю. Говорите обычным голосом, можно с паузами. Нажмите «Остановить», когда закончите.'
+    : 'Говорите обычным голосом, можно с паузами. Текст появится в поле, дальше его можно поправить.';
+}
+
+function voiceStop(){
+  REC_ON = false;
+  if(REC){ try{ REC.stop(); }catch(e){} }
+  micPaint();
+}
+
+function voiceToggle(){
+  if(REC_ON){ voiceStop(); return; }
+  var area = $('story'); if(!area) return;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('Этот браузер не умеет распознавать речь', true); return; }
+
+  REC = new SR();
+  REC.lang = 'ru-RU';
+  REC.continuous = true;
+  REC.interimResults = true;
+  REC_BASE = area.value ? area.value.replace(/\s+$/, '') + ' ' : '';
+  REC_ON = true;
+  micPaint();
+
+  REC.onresult = function(e){
+    var done = '', now = '';
+    for(var i = e.resultIndex; i < e.results.length; i++){
+      var t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) done += t; else now += t;
+    }
+    if(done) REC_BASE = (REC_BASE + done).replace(/\s+/g, ' ');
+    area.value = (REC_BASE + now).trim();
+    area.scrollTop = area.scrollHeight;
+  };
+
+  REC.onerror = function(e){
+    var msg = 'Не получилось записать голосом';
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      msg = 'Браузер не дал доступ к микрофону. Разрешите его в настройках сайта и повторите';
+    } else if(e.error === 'no-speech'){
+      msg = 'Ничего не услышала. Проверьте, что микрофон не закрыт';
+    } else if(e.error === 'network'){
+      msg = 'Распознавание речи не отвечает. Продиктуйте через клавиатуру телефона';
+    } else if(e.error === 'aborted'){
+      return;
+    }
+    REC_ON = false; micPaint();
+    toast(msg, true);
+  };
+
+  /* браузер сам обрывает запись после паузы — продолжаем, пока не нажали «Остановить» */
+  REC.onend = function(){
+    if(REC_ON){ try{ REC.start(); }catch(e){ REC_ON = false; micPaint(); } }
+    else micPaint();
+  };
+
+  try{ REC.start(); }
+  catch(e){ REC_ON = false; micPaint(); toast('Микрофон занят другой программой', true); }
+}
+
+/* ================= разбор надиктованной формулы =================
+
+   Диктовка приходит без запятых и почти всегда словами: «эстель семь точка
+   один на корни оксид шесть процентов один к одному выдержка тридцать пять
+   минут». Разбор идёт в три шага.
+
+   1. Числа словами превращаются в цифры, «тридцать четыре» склеивается в 34,
+      «точка» между цифрами становится точкой, «процентов» — знаком процента.
+   2. В получившейся строке ищутся опорные слова. Опорное слово открывает
+      кусок, который тянется до следующего опорного слова, — так становится
+      известно, к какому полю относится значение.
+   3. То, что опорного слова не получило, добирается по всему тексту:
+      пропорция, выдержка, граммовка, жалоба.
+
+   На `\b` в русских выражениях опираться нельзя — с кириллицей граница слова
+   не срабатывает. Везде, где нужна граница, стоит `(^|[^а-яё])`. */
+
+var BRANDS = ['Estel','Wella','Schwarzkopf','Matrix','Kapous','L’Oreal'];
+var OXIDES = ['3 %','6 %','9 %','12 %'];
+var RATIOS = ['1:1','1:1.5','1:2'];
+var ZONES  = ['корни','длина','концы','вся длина','корни и длина'];
+var TECHS  = ['классика','балаяж','шатуш','AirTouch','мелирование фольгой','открытая техника'];
+
+var NUMW = {
+  'ноль':0,'нуль':0,'один':1,'одна':1,'одно':1,'два':2,'две':2,'три':3,'четыре':4,'пять':5,
+  'шесть':6,'семь':7,'восемь':8,'девять':9,'десять':10,'одиннадцать':11,'двенадцать':12,
+  'тринадцать':13,'четырнадцать':14,'пятнадцать':15,'шестнадцать':16,'семнадцать':17,
+  'восемнадцать':18,'девятнадцать':19,'двадцать':20,'тридцать':30,'сорок':40,'пятьдесят':50,
+  'шестьдесят':60,'семьдесят':70,'восемьдесят':80,'девяносто':90,'сто':100,
+  /* косвенные падежи: «на трёх», «на шести», «на полутора», «один к одному» */
+  'одному':1,'одного':1,'двум':2,'двух':2,'трём':3,'трем':3,'трёх':3,'трех':3,
+  'четырём':4,'четырем':4,'четырёх':4,'четырех':4,'пяти':5,'шести':6,'семи':7,
+  'восьми':8,'девяти':9,'десяти':10,'двенадцати':12,'двадцати':20,'тридцати':30,'сорока':40,
+  'полтора':1.5,'полторы':1.5,'полутора':1.5
+};
+var TENS = {'20':1,'30':1,'40':1,'50':1,'60':1,'70':1,'80':1,'90':1};
+
+function bare(w){ return String(w).toLowerCase().replace(/^[^0-9a-zа-яё%]+|[^0-9a-zа-яё%]+$/gi, ''); }
+
+function normNums(text){
+  var words = String(text).toLowerCase().split(/\s+/).filter(Boolean);
+  var out = [];
+  words.forEach(function(w){
+    var b = bare(w);
+    out.push(NUMW.hasOwnProperty(b) ? String(NUMW[b]) : w);
+  });
+  /* «тридцать четыре» → 34, «сто двадцать» → 120: склеиваются только
+     сотня с десятком и круглый десяток с единицей, тоны это не задевает */
+  function glue(list){
+    var m = [];
+    for(var i = 0; i < list.length; i++){
+      var a = bare(list[i]), b = (i + 1 < list.length) ? bare(list[i+1]) : '';
+      var join = (TENS[a] && /^[1-9]$/.test(b)) ||
+                 (a === '100' && /^[1-9][0-9]?$/.test(b) && +b <= 99);
+      if(join){ m.push(String(+a + +b)); i++; }
+      else m.push(list[i]);
+    }
+    return m;
+  }
+  var merged = glue(glue(out));
+  var s = merged.join(' ');
+  s = s.replace(/(\d)\s+точка\s+(\d)/g, '$1.$2');
+  s = s.replace(/(\d)\s+запятая\s+(\d)/g, '$1.$2');
+  s = s.replace(/(\d)\s*процент[а-яё]*/g, '$1 %');
+  s = s.replace(/(\d)\s*%/g, '$1 %');
+  s = s.replace(/[,;]/g, ' ');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+/* опорное слово → поле. Порядок важен: длинные фразы проверяются первыми */
+var ANCHORS = [
+  ['тон корней','root'], ['на корнях','root'], ['на корни','root'], ['корневая зона','root'],
+  ['корни','root'], ['корней','root'], ['корнях','root'], ['корням','root'],
+  ['по всей длине','zonesAll'], ['вся длина','zonesAll'], ['всю длину','zonesAll'],
+  ['тон длины','len'], ['по длине','len'], ['на длину','len'], ['на длине','len'],
+  ['длина','len'], ['длину','len'], ['длине','len'], ['длины','len'],
+  ['концы','zonesEnds'], ['кончики','zonesEnds'],
+  ['оксид','oxide'], ['оксиде','oxide'], ['окислитель','oxide'], ['окислителе','oxide'], ['активатор','oxide'],
+  ['на 1.5','oxideShort'], ['на 3','oxideShort'], ['на 6','oxideShort'], ['на 9','oxideShort'], ['на 12','oxideShort'],
+  ['пропорция','ratio'], ['пропорции','ratio'], ['пропорцию','ratio'],
+  ['выдержка','hold'], ['выдержку','hold'], ['выдержке','hold'],
+  ['выдержала','hold'], ['держала','hold'], ['подержала','hold'], ['оставила','hold'],
+  ['мелирование фольгой','techFoil'], ['открытая техника','techOpen'], ['открытым воздухом','techOpen'],
+  ['классика','techClassic'], ['классику','techClassic'], ['классикой','techClassic'],
+  ['балаяж','techBal'], ['шатуш','techShat'], ['airtouch','techAir'], ['air touch','techAir'],
+  ['аиртач','techAir'], ['эйртач','techAir'], ['эиртач','techAir'],
+  ['техника','tech'], ['технику','tech'], ['техникой','tech'],
+  ['осветление','bleach'], ['осветлила','bleach'], ['осветляла','bleach'], ['обесцвечивание','bleach'],
+  ['порошок','bleachPowder'], ['порошком','bleachPowder'], ['пудра','bleachPowder'], ['пудрой','bleachPowder'],
+  ['тонирование','toneAfter'], ['тонировала','toneAfter'], ['тонировку','toneAfter'], ['тонировка','toneAfter'],
+  ['было до','before'], ['до этого','before'], ['свой цвет','beforeOwn'], ['натуральный','beforeOwn'],
+  ['седина','beforeGrey'], ['седины','beforeGrey'], ['окрашено','before'], ['крашено','before'],
+  ['результат','result'], ['получилось','result'], ['попали в тон','resultHit'],
+  ['грамм','grams'], ['граммов','grams'], ['грамма','grams'], ['расход','grams'],
+  ['отросли','rootsDays'], ['отрасли','rootsDays'], ['отросло','rootsDays'],
+  ['вымылся','toneDays'], ['смылся','toneDays'], ['слетел','toneDays'], ['потускнел','toneDays'],
+  ['жалоба','complaint'], ['жалоб','complaint'], ['жалоба нет','complaint'],
+  ['пятна','complaintSpots'], ['пятнами','complaintSpots'],
+  ['пожелтение','complaintYellow'], ['пожелтел','complaintYellow'], ['желтизна','complaintYellow'],
+  ['повреждение','complaintDamage'], ['ломается','complaintDamage'], ['сожгли','complaintDamage'],
+  ['переделка','redo'], ['переделки','redo'], ['переделок','redo'],
+  ['переделывала','redo'], ['переделали','redo'], ['переделала','redo'],
+  ['estel','brand'], ['эстель','brand'], ['wella','brand'], ['велла','brand'],
+  ['schwarzkopf','brand'], ['шварцкопф','brand'], ['matrix','brand'], ['матрикс','brand'],
+  ['kapous','brand'], ['капус','brand'], ['loreal','brand'], ['лореаль','brand'], ['лореал','brand']
+].sort(function(a, b){ return b[0].split(' ').length - a[0].split(' ').length; });
+
+var BRAND_OF = {
+  'estel':'Estel','эстель':'Estel','wella':'Wella','велла':'Wella',
+  'schwarzkopf':'Schwarzkopf','шварцкопф':'Schwarzkopf','matrix':'Matrix','матрикс':'Matrix',
+  'kapous':'Kapous','капус':'Kapous','loreal':'L’Oreal','лореаль':'L’Oreal','лореал':'L’Oreal'
+};
+
+/* убираем из куска то, что тоном быть не может: проценты, минуты, граммы, дни */
+function stripUnits(s){
+  return String(s)
+    .replace(/\d+(?:[.,]\d+)?\s*%/g, ' ')
+    .replace(/\d+\s*мин[а-яё]*/g, ' ')
+    .replace(/\d+\s*(?:грамм[а-яё]*|гр|г)(?![а-яёa-z])/g, ' ')
+    .replace(/\d+\s*(?:дн[а-яё]*|день|недел[а-яё]*)/g, ' ')
+    .replace(/\d{1,2}\s*(?::|к)\s*\d{1,2}(?:[.,]\d)?/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+function tone(s){
+  s = stripUnits(s);
+  var m = s.match(/(\d{1,2})[.,](\d{1,3})/);
+  if(m) return m[1] + '.' + m[2];
+  m = s.match(/(?:^|[^\d.])(\d{1,2})\s+(\d{1,2})(?![\d.])/);
+  if(m && +m[1] <= 12) return m[1] + '.' + m[2];
+  m = s.match(/(?:^|[^\d.])(\d{1,2})(?![\d.])/);
+  if(m && +m[1] <= 12) return m[1];
+  return '';
+}
+/* тон из куска уже забрали — остальное отдаём добору */
+function dropTone(s, t){
+  if(!t) return s;
+  var esc2 = t.replace('.', '[.,]?\\s*');
+  return String(s).replace(new RegExp(esc2), ' ').replace(/\s+/g, ' ').trim();
+}
+function firstNum(s){
+  var m = String(s).match(/(\d{1,3}(?:[.,]\d+)?)/);
+  return m ? m[1].replace(',', '.') : '';
+}
+
+/* Текст режется на куски: опорное слово открывает кусок, кусок тянется
+   до следующего опорного слова. Так значение всегда знает своё поле. */
+function chunks(text){
+  var words = text.split(/\s+/).filter(Boolean);
+  var res = [], head = [], cur = null, i = 0;
+  while(i < words.length){
+    var hit = null;
+    for(var k = 0; k < ANCHORS.length; k++){
+      var n = ANCHORS[k][0].split(' ').length;
+      if(i + n > words.length) continue;
+      if(words.slice(i, i + n).map(bare).join(' ') === ANCHORS[k][0]){ hit = ANCHORS[k]; break; }
+    }
+    if(hit){
+      if(cur) res.push(cur);
+      cur = { field:hit[1], word:hit[0], text:[] };
+      i += hit[0].split(' ').length;
+    } else {
+      if(cur) cur.text.push(words[i]); else head.push(words[i]);
+      i++;
+    }
+  }
+  if(cur) res.push(cur);
+  res.forEach(function(c){ c.text = c.text.join(' ').replace(/^[\s:,-]+|[\s:,-]+$/g, ''); });
+  return { head: head.join(' ').replace(/^[\s:,-]+|[\s:,-]+$/g, ''), list: res };
+}
+
+function parseStory(text){
+  var res = { card:{}, rootsDays:null, toneDays:null, complaint:null, redo:null, rest:[] };
+  var norm = normNums(text);
+  var ch = chunks(norm);
+  var k = res.card;
+  var pendingTone = '', prevField = '', zones = [];
+
+  if(ch.head){
+    var t0 = tone(ch.head);
+    if(t0) pendingTone = t0; else res.rest.push(ch.head);
+  }
+
+  ch.list.forEach(function(c, ci){
+    var v = c.text, low = ' ' + v.toLowerCase() + ' ', taken = true, tv;
+    var prev = ci ? ch.list[ci-1] : null;
+    switch(c.field){
+      case 'brand':
+        if(!k.brand) k.brand = BRAND_OF[c.word] || c.word;
+        tv = tone(v);
+        if(tv) pendingTone = tv;
+        else if(v) res.rest.push(v);
+        break;
+      case 'root':
+        tv = tone(v);
+        k.rootTone = tv || pendingTone || k.rootTone || '';
+        if(!tv && pendingTone) pendingTone = '';
+        if(k.rootTone) zones.push('корни');
+        if(v) res.rest.push(dropTone(v, tv));
+        break;
+      case 'len':
+        tv = tone(v);
+        k.lenTone = tv || pendingTone || k.lenTone || '';
+        if(!tv && pendingTone) pendingTone = '';
+        if(k.lenTone) zones.push('длина');
+        if(v) res.rest.push(dropTone(v, tv));
+        break;
+      case 'zonesAll': zones.push('вся длина'); if(v) res.rest.push(v); break;
+      case 'zonesEnds': zones.push('концы'); if(v) res.rest.push(v); break;
+      case 'oxide': {
+        var ox = firstNum(v);
+        if(ox){
+          k.oxide = ox + ' %';
+          var tailOx = v.replace(/\d{1,3}(?:[.,]\d+)?\s*%?/, ' ').replace(/\s+/g, ' ').trim();
+          if(tailOx) res.rest.push(tailOx);
+        } else if(v) res.rest.push(v);
+        break;
+      }
+      case 'oxideShort': {
+        /* «на шести» после осветления или тонирования относится к ним,
+           а не к основной краске */
+        var n = c.word.split(' ')[1];
+        var restOx = v.replace(/^%\s*/, '').trim();
+        var toBleach = (prevField === 'bleach' || prevField === 'bleachPowder') && k.bleach;
+        if(toBleach){
+          k.bleach += ', ' + n + ' %';
+          var mm = restOx.match(/(\d{1,3})\s*мин[а-яё]*/);
+          if(mm){ k.bleach += ', ' + mm[1] + ' мин'; restOx = restOx.replace(mm[0], '').trim(); }
+        }
+        else if(prevField === 'toneAfter' && k.toneAfter) k.toneAfter += ' на ' + n + ' %';
+        else if(!k.oxide) k.oxide = n + ' %';
+        if(restOx) res.rest.push(restOx);
+        break;
+      }
+      case 'ratio': {
+        var mr = v.match(/(\d{1,2})\s*(?:к|:)\s*(\d{1,2}(?:\.\d)?)/);
+        if(mr) k.ratio = mr[1] + ':' + mr[2];
+        else if(v) res.rest.push(v);
+        break;
+      }
+      case 'hold': {
+        var hn = firstNum(v);
+        if(hn) k.hold = String(Math.round(+hn));
+        break;
+      }
+      case 'grams': {
+        /* «шестьдесят грамм» — число стоит перед словом, и его надо
+           забрать с хвоста предыдущего куска */
+        var g = firstNum(v);
+        if(!g){
+          var src = (prev ? prev.text : '') || ch.head;
+          var mp = String(src).match(/(\d{1,3})\s*$/);
+          if(mp) g = mp[1];
+        }
+        if(g) k.grams = Math.round(+g) + ' г';
+        break;
+      }
+      case 'tech': k.tech = v || k.tech; break;
+      case 'techClassic': k.tech = 'классика'; break;
+      case 'techBal': k.tech = 'балаяж'; break;
+      case 'techShat': k.tech = 'шатуш'; break;
+      case 'techAir': k.tech = 'AirTouch'; break;
+      case 'techFoil': k.tech = 'мелирование фольгой'; break;
+      case 'techOpen': k.tech = 'открытая техника'; break;
+      case 'bleach': k.bleach = v || 'да'; break;
+      case 'bleachPowder': k.bleach = ('порошок ' + v).trim(); break;
+      case 'toneAfter': k.toneAfter = (v ? v.replace(/^(\d{1,2})\s+(\d{1,2})(?=\s|$)/, '$1.$2') : '') || k.toneAfter || 'да'; break;
+      case 'before':
+        k.before = ((c.word === 'окрашено' || c.word === 'крашено') ? 'окрашено ' : '') + v;
+        break;
+      case 'beforeOwn': k.before = 'свой цвет' + (v ? ', ' + v : ''); break;
+      case 'beforeGrey': k.before = ('седина ' + v).trim(); break;
+      case 'result': k.result = v || k.result; break;
+      case 'resultHit': k.result = 'попали в тон' + (v ? ', ' + v : ''); break;
+      case 'rootsDays': {
+        var rd = firstNum(v) || firstNum(ch.head);
+        if(rd) res.rootsDays = Math.round(+rd);
+        break;
+      }
+      case 'toneDays': {
+        var td = firstNum(v) || firstNum(ch.head);
+        if(td) res.toneDays = Math.round(+td);
+        break;
+      }
+      case 'complaint':
+        res.complaint = /(^|[^а-яё])(без|нет|не)([^а-яё]|$)/.test(low) ? '' : (v || 'цвет ушёл');
+        break;
+      case 'complaintSpots':  res.complaint = 'пятна'; break;
+      case 'complaintYellow': res.complaint = 'пожелтение'; break;
+      case 'complaintDamage': res.complaint = 'повреждение волоса'; break;
+      case 'redo':
+        res.redo = !/(^|[^а-яё])(без|не)([^а-яё]|$)/.test(low);
+        break;
+      default: taken = false;
+    }
+    if(!taken && v) res.rest.push(v);
+    if(c.field !== 'oxideShort') prevField = c.field;
+  });
+
+  /* Добор. Идёт только по тому, что опорного слова не получило, — иначе
+     минуты осветления попали бы в выдержку основной краски. */
+  var pool = (ch.head + ' ' + res.rest.join(' ')).trim();
+  if(!k.ratio){
+    var mr2 = pool.match(/(?:^|[^\d])(\d{1,2})\s*(?:к|:)\s*(\d{1,2}(?:\.\d)?)(?![\d])/);
+    if(mr2) k.ratio = mr2[1] + ':' + mr2[2];
+  }
+  if(!k.hold){
+    var mh = pool.match(/(\d{1,3})\s*мин[а-яё]*/);
+    if(mh) k.hold = mh[1];
+  }
+  if(!k.grams){
+    var mg = pool.match(/(\d{1,3})\s*(?:грамм[а-яё]*|гр|г)(?![а-яёa-z])/);
+    if(mg) k.grams = mg[1] + ' г';
+  }
+  if(!k.oxide){
+    var mo = pool.match(/(?:^|[^\d.])(1\.5|3|6|9|12)\s*%/);
+    if(mo) k.oxide = mo[1] + ' %';
+  }
+  if(res.complaint == null && /(^|[^а-яё])цвет уш(ё|е)л/.test(norm)) res.complaint = 'цвет ушёл';
+
+  /* тон назвали, а зону — нет: «вся длина» красится одним тоном,
+     в остальных случаях это корни, самая частая работа колориста */
+  if(pendingTone && !k.rootTone && !k.lenTone){
+    if(zones.indexOf('вся длина') >= 0){ k.rootTone = pendingTone; k.lenTone = pendingTone; }
+    else k.rootTone = pendingTone;
+  }
+
+  /* зоны выводятся из того, что окрашивали: отдельно их диктовать не нужно */
+  if(!k.zones){
+    if(zones.indexOf('вся длина') >= 0) k.zones = 'вся длина';
+    else {
+      var uniq = [];
+      zones.forEach(function(z){ if(uniq.indexOf(z) < 0) uniq.push(z); });
+      if(uniq.length === 2 && uniq.indexOf('корни') >= 0 && uniq.indexOf('длина') >= 0) k.zones = 'корни и длина';
+      else if(uniq.length) k.zones = uniq.join(', ');
+    }
+  }
+
+  res.rest = res.rest.map(function(t){
+    if(k.ratio) t = t.replace(/\d{1,2}\s*(?::|к)\s*\d{1,2}(?:[.,]\d)?/g, ' ');
+    if(k.hold)  t = t.replace(/\d{1,3}\s*мин[а-яё]*/g, ' ');
+    if(k.grams) t = t.replace(/\d{1,3}\s*(?:грамм[а-яё]*|гр|г)(?![а-яёa-z])/g, ' ');
+    if(k.oxide) t = t.replace(/\d{1,2}(?:[.,]\d)?\s*%/g, ' ');
+    return t.replace(/\s+/g, ' ').trim();
+  }).filter(function(t){ return t && t.replace(/[\s,.;:%0-9-]/g, '').length > 1; });
+  return res;
+}
+
+/* Подсказки под полем: где набор известен заранее — он фиксированный,
+   где открытый — собирается из того, что мастер уже вписывал раньше.
+   Само поле остаётся открытым, свои значения и голос работают как прежде. */
+function usedValues(field, limit){
+  var count = {};
+  DB.appts.forEach(function(a){
+    var v = a.card && a.card[field];
+    if(!v) return;
+    v = String(v).trim(); if(!v) return;
+    count[v] = (count[v] || 0) + 1;
+  });
+  return Object.keys(count)
+    .sort(function(x, y){ return count[y] - count[x] || (x < y ? -1 : 1); })
+    .slice(0, limit || 6);
+}
+
+/* невидимый разделитель: имя поля и значение уезжают в один data-id */
+var SEP = String.fromCharCode(1);
+
+function hintRow(field, values){
+  if(!values.length) return '';
+  return '<div class="chip-row hints">' + values.map(function(v){
+    return '<button type="button" class="chip" data-act="setField" data-id="' +
+           field + SEP + esc(v) + '">' + esc(v) + '</button>';
+  }).join('') + '</div>';
+}
+
+var CARD_FIELDS = ['brand','rootTone','lenTone','oxide','ratio','hold','grams',
+                   'zones','tech','bleach','toneAfter','before','result'];
+
+function editCard(id){
+  var a = apptById(id); if(!a) return;
+  var k = a.card || {};
+  function f(name, label, value, ph, hints){
+    return '<div class="field"><label class="lab">' + label + '</label>' +
+           '<input class="inp" id="k_' + name + '" value="' + esc(value || '') + '" placeholder="' + esc(ph || '') + '">' +
+           hintRow(name, hints || []) + '</div>';
+  }
+  var cSel = ['', 'цвет ушёл', 'пятна', 'пожелтение', 'повреждение волоса'].map(function(v){
+    return '<option value="' + esc(v) + '"' + ((a.complaint || '') === v ? ' selected' : '') + '>' +
+           (v || 'нет') + '</option>';
+  }).join('');
+
+  var h =
+    '<div class="note">Через месяц клиент скажет «как в прошлый раз» — повторить надо будет точно. ' +
+      'Ради этого здесь всё и записывается.</div>' +
+    voiceBlock('Расскажите свободно — потом разложим по полям',
+      'Например: эстель семь точка один на корни оксид шесть процентов пропорция один к одному выдержка тридцать пять минут шестьдесят грамм классика седина сорок процентов результат ровный', '') +
+    '<button class="btn sm wide" style="margin-top:-4px;margin-bottom:12px" data-act="applyStory" data-id="' + a.id + '">Разложить по полям</button>' +
+    '<div id="unparsed"></div>' +
+    '<div class="hintline" style="margin-bottom:10px">Ниже под каждым полем — готовые значения. ' +
+      'Нажмите нужное или впишите своё. Заполнять всё не обязательно.</div>' +
+    f('brand','Бренд краски', k.brand, 'Estel', BRANDS) +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Тон корней</label>' +
+        '<input class="inp" id="k_rootTone" value="' + esc(k.rootTone || '') + '" placeholder="7.1">' +
+        hintRow('rootTone', usedValues('rootTone', 6)) + '</div>' +
+      '<div class="field"><label class="lab">Тон длины</label>' +
+        '<input class="inp" id="k_lenTone" value="' + esc(k.lenTone || '') + '" placeholder="8.0">' +
+        hintRow('lenTone', usedValues('lenTone', 6)) + '</div>' +
+    '</div>' +
+    f('oxide','Оксид', k.oxide, '6 %', OXIDES) +
+    f('ratio','Пропорция', k.ratio, '1:1', RATIOS) +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Выдержка, минут</label>' +
+        '<input class="inp" id="k_hold" inputmode="numeric" value="' + esc(k.hold || '') + '" placeholder="35"></div>' +
+      '<div class="field"><label class="lab">Расход краски</label>' +
+        '<input class="inp" id="k_grams" value="' + esc(k.grams || '') + '" placeholder="60 г"></div>' +
+    '</div>' +
+    f('zones','Зоны', k.zones, 'корни', ZONES) +
+    f('tech','Техника', k.tech, 'классика', TECHS) +
+    f('bleach','Осветление', k.bleach, 'порошок, 6 %, 20 мин', usedValues('bleach', 4)) +
+    f('toneAfter','Тонирование после', k.toneAfter, '9.16 на 1,5 %', usedValues('toneAfter', 4)) +
+    f('before','Что было до', k.before, 'свой цвет, седина 40 %', usedValues('before', 5)) +
+    f('result','Результат', k.result, 'ровный, попали в тон', usedValues('result', 5)) +
+    '<div class="sec-t" style="margin-top:18px">Как держалось прошлое окрашивание</div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Корни отросли через, дней</label>' +
+        '<input class="inp" id="k_rootsDays" inputmode="numeric" value="' + (a.rootsDays != null ? a.rootsDays : '') + '"></div>' +
+      '<div class="field"><label class="lab">Тон вымылся через, дней</label>' +
+        '<input class="inp" id="k_toneDays" inputmode="numeric" value="' + (a.toneDays != null ? a.toneDays : '') + '"></div>' +
+    '</div>' +
+    '<div class="hintline" style="margin-top:-4px;margin-bottom:12px">По первому числу кабинет считает, ' +
+      'когда звать на коррекцию. По второму видно, какие формулы держатся.</div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Жалоба</label>' +
+        '<select class="inp" id="k_complaint">' + cSel + '</select></div>' +
+      '<div class="field"><label class="lab">Переделка</label>' +
+        '<select class="inp" id="k_redo"><option value="0"' + (!a.redo ? ' selected' : '') + '>нет</option>' +
+        '<option value="1"' + (a.redo ? ' selected' : '') + '>да, переделывали</option></select></div>' +
+    '</div>' +
+    '<div class="field"><label class="lab">Заметка</label>' +
+      '<input class="inp" id="k_note" value="' + esc(a.note || '') + '"></div>';
+  openSheet('Что делали', h,
+    '<button class="btn primary" data-act="saveCard" data-id="' + a.id + '">Сохранить</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+  markHints();
+}
+
+/* подсвечиваем подсказку, совпадающую с тем, что уже стоит в поле */
+function markHints(){
+  var rows = document.querySelectorAll('.chip-row.hints');
+  for(var i = 0; i < rows.length; i++){
+    var chips = rows[i].querySelectorAll('.chip');
+    for(var j = 0; j < chips.length; j++){
+      var parts = chips[j].getAttribute('data-id').split(SEP);
+      var inp = $('k_' + parts[0]);
+      chips[j].classList.toggle('on', !!inp && inp.value.trim().toLowerCase() === parts[1].toLowerCase());
+    }
+  }
+}
+
+function formAppt(preClient){
+  var opts = DB.clients.map(function(c){
+    return '<option value="' + c.id + '"' + (c.id === preClient ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+  }).join('');
+  var sopts = DB.services.map(function(s){
+    return '<option value="' + s.id + '">' + esc(s.name) + ' · ' + dur(s.dur) + ' · ' + rub(s.price) + '</option>';
+  }).join('');
+  var h =
+    '<div class="field"><label class="lab">Клиент</label><select class="inp" id="f_client">' + opts + '</select></div>' +
+    '<div class="field"><label class="lab">Процедура</label><select class="inp" id="f_service">' + sopts + '</select></div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Дата</label><input class="inp" id="f_date" type="date" value="' + today() + '"></div>' +
+      '<div class="field"><label class="lab">Время</label><input class="inp" id="f_time" type="time" value="10:00"></div>' +
+    '</div>' +
+    '<div class="field"><label class="lab">Заметка</label><input class="inp" id="f_note" placeholder="необязательно"></div>' +
+    '<div class="hintline">Длительность и стоимость подставятся из процедуры — их можно поправить потом в записи. ' +
+    'Сложное окрашивание идёт три-четыре часа: если запись наложится на предыдущую, кабинет предупредит.</div>';
+  openSheet('Новая запись', h,
+    '<button class="btn primary" data-act="saveAppt">Сохранить запись</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+function formMove(id){
+  var a = apptById(id); if(!a) return;
+  var h = '<div class="two-col">' +
+    '<div class="field"><label class="lab">Новая дата</label>' +
+      '<input class="inp" id="mv_date" type="date" value="' + a.date + '"></div>' +
+    '<div class="field"><label class="lab">Новое время</label>' +
+      '<input class="inp" id="mv_time" type="time" value="' + a.time + '"></div></div>' +
+    '<div class="hintline">Сейчас: ' + shortDate(a.date) + ', ' + a.time + ', ' + dur(a.dur) +
+    '. После переноса отметка о подтверждении снимется — клиенту уходило другое время.</div>';
+  openSheet('Перенести запись', h,
+    '<button class="btn primary" data-act="saveMove" data-id="' + a.id + '">Перенести</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+function formClient(id){
+  var c = id ? cli(id) : { name:'', phone:'', cycleRoots:35, cycleCut:56, note:'', link:'whatsapp', allergy:null };
+  var h =
+    '<div class="field"><label class="lab">Имя</label><input class="inp" id="cl_name" value="' + esc(c.name) + '"></div>' +
+    '<div class="field"><label class="lab">Телефон</label><input class="inp" id="cl_phone" inputmode="tel" value="' + esc(c.phone) + '"></div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Корни обновляет раз в столько дней</label>' +
+        '<input class="inp" id="cl_roots" inputmode="numeric" value="' + (c.cycleRoots || 35) + '"></div>' +
+      '<div class="field"><label class="lab">Стрижётся раз в столько дней</label>' +
+        '<input class="inp" id="cl_cut" inputmode="numeric" value="' + (c.cycleCut || 56) + '"></div>' +
+    '</div>' +
+    '<div class="hintline">Сроки разные: корни обновляют раз в четыре-шесть недель, стрижку — ' +
+    'раз в шесть-десять. Кабинет позовёт по тому, который подойдёт раньше.</div>' +
+    '<div class="two-col" style="margin-top:12px">' +
+      '<div class="field"><label class="lab">Куда писать</label><select class="inp" id="cl_link">' +
+        '<option value="whatsapp"' + (c.link === 'whatsapp' ? ' selected' : '') + '>WhatsApp</option>' +
+        '<option value="telegram"' + (c.link === 'telegram' ? ' selected' : '') + '>Telegram</option>' +
+        '<option value="sms"' + (c.link === 'sms' ? ' selected' : '') + '>СМС</option>' +
+      '</select></div>' +
+      '<div class="field"><label class="lab">Аллергопроба, дата</label>' +
+        '<input class="inp" id="cl_allergy" type="date" value="' + (c.allergy || '') + '"></div>' +
+    '</div>' +
+    '<div class="hintline">Аллергопроба ставится перед первым окрашиванием, за 48 часов. ' +
+    'Пока даты нет, кабинет напомнит о ней в «Нужно отметить».</div>' +
+    '<div class="field" style="margin-top:12px"><label class="lab">Заметка</label>' +
+      '<input class="inp" id="cl_note" value="' + esc(c.note || '') + '" placeholder="седина, пористость, что не любит"></div>';
+  openSheet(id ? 'Изменить клиента' : 'Новый клиент', h,
+    '<button class="btn primary" data-act="saveClient" data-id="' + (id || '') + '">Сохранить</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+function formAllergy(id){
+  var c = cli(id);
+  var h = '<div class="note">Отметка нужна перед первым окрашиванием: этого требует инструкция ' +
+    'производителя краски, и она же защищает мастера, если клиент придёт с жалобой.</div>' +
+    '<div class="field"><label class="lab">Дата, когда проба сделана</label>' +
+      '<input class="inp" id="al_date" type="date" value="' + (c.allergy || today()) + '"></div>';
+  openSheet('Аллергопроба: ' + c.name, h,
+    '<button class="btn primary" data-act="saveAllergy" data-id="' + c.id + '">Отметить</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+function formStock(){
+  var h =
+    '<div class="field"><label class="lab">Название</label>' +
+      '<input class="inp" id="st_name" placeholder="Краска Estel 7.1"></div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Осталось</label><input class="inp" id="st_qty" inputmode="numeric" value="1"></div>' +
+      '<div class="field"><label class="lab">Норма запаса</label><input class="inp" id="st_min" inputmode="numeric" value="1"></div>' +
+    '</div>' +
+    '<div class="field"><label class="lab">Единица</label><input class="inp" id="st_unit" value="туба"></div>' +
+    '<div class="hintline">Единица — как удобнее считать: краска в тубах, оксид во флаконах, ' +
+    'порошок в банках, фольга в рулонах, перчатки в упаковках. ' +
+    'Если в названии краски написать тон — «Краска Estel 7.1», — отчёт покажет, какие тоны лежат без движения.</div>';
+  openSheet('Новый материал', h,
+    '<button class="btn primary" data-act="saveStock">Сохранить</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+function formClean(){
+  var h =
+    '<div class="field"><label class="lab">Что обрабатывали</label><select class="inp" id="cn_kind">' +
+      '<option>Ножницы</option><option>Машинка, ножевой блок</option><option>Расчёски</option>' +
+      '<option>Бритва, держатель лезвия</option><option>Зажимы</option><option>Рабочая поверхность</option>' +
+    '</select></div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Дата</label><input class="inp" id="cn_date" type="date" value="' + today() + '"></div>' +
+      '<div class="field"><label class="lab">Количество</label><input class="inp" id="cn_count" inputmode="numeric" value="3"></div>' +
+    '</div>' +
+    '<div class="field"><label class="lab">Заметка</label>' +
+      '<input class="inp" id="cn_note" placeholder="средство, время выдержки"></div>';
+  openSheet('Запись о дезинфекции', h,
+    '<button class="btn primary" data-act="saveClean">Записать</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+/* ================= связь с клиентом ================= */
+function firstName(c){ return (c.name || '').split(' ')[0]; }
+
+/* Три письма вместо одного: подтверждение сразу после записи, напоминание
+   накануне и приглашение вернуться. Текст собирается из самой записи,
+   вписывать дату и время руками не нужно. */
+function msgText(kind, obj){
+  var place = (DB.settings.place || '').trim();
+  var tail = place ? ' Адрес: ' + place + '.' : '';
+  if(kind === 'invite'){
+    var c0 = obj, d = dueInfo(c0), what;
+    if(d.why.length === 2) what = 'пора обновить корни и освежить стрижку';
+    else if(d.why[0] === 'корни') what = 'пора обновить корни';
+    else if(d.why[0] === 'стрижка') what = 'пора освежить стрижку';
+    else what = 'давно не виделись';
+    return 'Здравствуйте, ' + firstName(c0) + '! По моим записям ' + what + ' — подберём удобное время?';
+  }
+  var a = obj, c = cli(a.clientId), s = svc(a.serviceId);
+  if(kind === 'confirm'){
+    return 'Здравствуйте, ' + firstName(c) + '! Записала вас на ' + dateAcc(a.date) +
+           ', ' + a.time + '. ' + s.name + ', ' + dur(a.dur) + ', ' + rub(a.price) + '.' + tail +
+           ' Если планы изменятся, напишите, пожалуйста, заранее.';
+  }
+  return 'Здравствуйте, ' + firstName(c) + '! Напоминаю: завтра в ' + a.time + ' — ' +
+         s.name.toLowerCase() + ', ' + dur(a.dur) + '.' + tail + ' Всё в силе?';
+}
+
+var KIND_TITLE = { confirm:'Подтверждение записи', remind:'Напоминание накануне', invite:'Приглашение вернуться' };
+
+/* Отметка ставится в момент, когда мастер выбрал способ связи: она означает
+   «я отправила», а не «клиент ответил». Лишнего касания не требуется. */
+function markSent(kind, apptId){
+  var a = apptById(apptId); if(!a) return;
+  var f = (kind === 'confirm') ? 'sentConfirm' : 'sentRemind';
+  if(a[f]) return;
+  snapshot(); a[f] = today(); save();
+}
+
+function sendSheet(kind, id){
+  var a = null, c;
+  if(kind === 'invite'){ c = cli(id); }
+  else { a = apptById(id); if(!a) return; c = cli(a.clientId); }
+
+  var body = msgText(kind, kind === 'invite' ? c : a);
+  var text = encodeURIComponent(body);
+  var digits = (c.phone || '').replace(/\D/g, '');
+  var pref = c.link || '';
+  var links = [];
+  if(digits) links.push(['WhatsApp', 'https://wa.me/' + digits + '?text=' + text, pref === 'whatsapp']);
+  links.push(['Telegram', 'https://t.me/share/url?url=&text=' + text, pref === 'telegram']);
+  if(digits) links.push(['СМС', 'sms:+' + digits + '?body=' + text, false]);
+  if(digits) links.push(['Позвонить', 'tel:+' + digits, false]);
+  /* основной способ связи из карточки клиента — первым */
+  links.sort(function(x, y){ return (y[2] ? 1 : 0) - (x[2] ? 1 : 0); });
+
+  var mark = (kind === 'invite') ? '' : ' data-sent="' + kind + '" data-appt="' + a.id + '"';
+  var h = '<div class="card"><div style="font-size:13px;line-height:1.55">' + esc(body) + '</div></div>' +
+          '<div class="list" style="margin-top:12px">' +
+          links.map(function(l){
+            return '<a class="btn wide' + (l[2] ? ' primary' : '') + '" href="' + l[1] +
+                   '" target="_blank" rel="noopener"' + mark + '>' + l[0] + '</a>';
+          }).join('') + '</div>';
+  if(kind !== 'invite'){
+    var f = (kind === 'confirm') ? 'sentConfirm' : 'sentRemind';
+    h += a[f]
+      ? '<div class="note">Отправлено ' + shortDate(a[f]) + '. Можно отправить ещё раз.</div>'
+      : '<div class="note">Как только выберете способ связи, запись отметится как отправленная. ' +
+        'Если позвоните по телефону — отметьте кнопкой ниже.</div>';
+    if(isColor(a) && needAllergy(c)){
+      h += '<div class="note">У клиента впереди первое окрашивание без отметки об аллергопробе. ' +
+           'Пробу ставят за 48 часов — предупредите об этом сейчас.</div>';
+    }
+  }
+  var foot = '';
+  if(kind !== 'invite'){
+    foot += '<button class="btn" data-act="markSent" data-id="' + kind + ':' + a.id + '">Отметить, что сообщила</button>';
+  }
+  foot += '<button class="btn ghost" data-act="closeSheet">Закрыть</button>';
+  openSheet(KIND_TITLE[kind] + ': ' + c.name, h, foot);
+}
+
+function writeTo(clientId){ sendSheet('invite', clientId); }
+
+/* ================= резервная копия ================= */
+function doBackup(){
+  var blob = new Blob([JSON.stringify(DB, null, 1)], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'tochka-krasoty-volosy-' + today() + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  snapshot(); DB.settings.lastBackup = today(); save();
+  toast('Копия сохранена в загрузки телефона');
+  closeSheet();
+}
+/* Файл разбирается и проверяется полностью до того, как база будет заменена.
+   Мастер видит, что именно лежит в файле, и подтверждает замену вручную. */
+var RESTORE = null;
+
+function doRestore(){
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.onchange = function(){
+    var f = inp.files && inp.files[0]; if(!f) return;
+    var r = new FileReader();
+    r.onerror = function(){ toast('Файл не прочитался. Попробуйте выбрать его заново', true); };
+    r.onload = function(){ checkRestore(r.result, f.name); };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+function checkRestore(text, fname){
+  var obj;
+  try{ obj = JSON.parse(text); }
+  catch(e){ toast('Это не файл копии кабинета: содержимое не читается', true); return; }
+  if(!obj || typeof obj !== 'object' || Array.isArray(obj)){
+    toast('Это не файл копии кабинета', true); return;
+  }
+  /* обязательные разделы: без них файл принадлежит не этому кабинету */
+  var need = [['clients','клиенты'], ['appts','приёмы'], ['services','процедуры']];
+  var missing = [];
+  need.forEach(function(p){ if(!Array.isArray(obj[p[0]])) missing.push(p[1]); });
+  if(missing.length === need.length){
+    toast('Это не файл копии кабинета «Точка красоты. Волосы»', true);
+    return;
+  }
+  if(missing.length){
+    toast('Файл не подошёл: нет разделов «' + missing.join('», «') + '»', true);
+    return;
+  }
+  /* необязательные разделы восполняются, замена из-за них не отменяется */
+  var filled = [];
+  if(!Array.isArray(obj.stock)){ obj.stock = []; filled.push('материалы'); }
+  if(!Array.isArray(obj.clean)){ obj.clean = []; filled.push('дезинфекция'); }
+  if(!Array.isArray(obj.notes)){ obj.notes = []; filled.push('заметки'); }
+  if(!obj.settings || typeof obj.settings !== 'object'){
+    obj.settings = { theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null };
+    filled.push('настройки');
+  }
+  if(!obj.settings.workStart) obj.settings.workStart = '09:00';
+  if(!obj.settings.workEnd) obj.settings.workEnd = '21:00';
+  if(!obj.settings.theme) obj.settings.theme = DB.settings.theme || 'light';
+  obj.clients.forEach(function(c){
+    if(c.cycleRoots == null) c.cycleRoots = c.cycle || 35;
+    if(c.cycleCut == null) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : 56;
+    if(c.allergy === undefined) c.allergy = null;
+  });
+
+  RESTORE = obj;
+
+  function row(label, was, will){
+    return '<div class="kv"><span>' + esc(label) + '</span><b>' + was + ' → ' + will + '</b></div>';
+  }
+  function withForm(list){
+    return list.filter(function(a){
+      return a.card && (a.card.brand || a.card.rootTone || a.card.lenTone);
+    }).length;
+  }
+  var h = '<div class="note">Сейчас в кабинете эти записи будут заменены содержимым файла ' +
+          esc(fname || 'копии') + '. Проверьте числа.</div>' +
+          '<div class="kvs">' +
+            row('Клиенты', DB.clients.length, obj.clients.length) +
+            row('Приёмы', DB.appts.length, obj.appts.length) +
+            row('Записи с формулой', withForm(DB.appts), withForm(obj.appts)) +
+            row('Процедуры', DB.services.length, obj.services.length) +
+            row('Материалы', DB.stock.length, obj.stock.length) +
+            row('Дезинфекция', DB.clean.length, obj.clean.length) +
+            row('Заметки', DB.notes.length, obj.notes.length) +
+          '</div>';
+  if(filled.length){
+    h += '<div class="note">' +
+         (filled.length === 1
+           ? 'В файле нет раздела «' + esc(filled[0]) + '» — он будет создан пустым.'
+           : 'В файле нет разделов «' + esc(filled.join('», «')) + '» — они будут созданы пустыми.') +
+         '</div>';
+  }
+  h += '<div class="note">Если числа выглядят неправильно, нажмите «Не заменять». ' +
+       'После замены прежние записи можно вернуть кнопкой отмены в шапке.</div>';
+  openSheet('Заменить записи из копии?', h,
+    '<button class="btn ghost" data-act="restoreCancel">Не заменять</button>' +
+    '<button class="btn primary" data-act="restoreApply">Заменить</button>');
+}
+
+function restoreApply(){
+  if(!RESTORE){ toast('Файл копии не выбран'); return; }
+  snapshot();
+  DB = RESTORE; RESTORE = null;
+  document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
+  tidyStatuses();
+  save(); render();
+  closeSheet();
+  toast('Записи заменены. Вернуть прежние — кнопкой отмены в шапке');
+}
+
+function restoreCancel(){
+  RESTORE = null;
+  closeSheet();
+  toast('Замена отменена, записи прежние');
+}
+
+/* Приёмы длинные, наложить новую запись на предыдущую легко.
+   Кабинет не запрещает — он предупреждает и показывает накладку в ленте дня. */
+function overlapWarn(a){
+  var hit = null, st = mins(a.time), en = st + a.dur;
+  DB.appts.forEach(function(x){
+    if(x.id === a.id || x.date !== a.date || x.status === 'cancel') return;
+    var xs = mins(x.time), xe = xs + x.dur;
+    if(st < xe && xs < en) hit = x;
+  });
+  if(!hit) return '';
+  return 'Внимание: запись наложилась на приём в ' + hit.time + ' (' + dur(hit.dur) + ')';
+}
+
+/* ================= действия ================= */
+function act(name, id){
+  switch(name){
+    case 'tab': setTab(id); break;
+    case 'hideInstall': snapshot(); DB.settings.installHidden = true; save(); render(); break;
+    case 'showInstall': snapshot(); DB.settings.installHidden = false; save(); closeSheet(); setTab('today'); break;
+
+    case 'start': {
+      var a = apptById(id); if(!a) break;
+      snapshot();
+      DB.appts.forEach(function(x){ if(x.status === 'running'){ x.status = 'plan'; x.startedAt = null; } });
+      a.status = 'running'; a.startedAt = Date.now();
+      save(); closeSheet(); render(); toast('Приём начат');
+      break;
+    }
+    case 'cancelStart': {
+      var a2 = apptById(id); if(!a2) break;
+      snapshot(); a2.status = 'plan'; a2.startedAt = null; save(); render();
+      break;
+    }
+    case 'extend': {
+      var a3 = apptById(id); if(!a3) break;
+      snapshot(); a3.dur += 15; save(); render(); toast('Добавили 15 минут');
+      break;
+    }
+    case 'finish': {
+      var a4 = apptById(id); if(!a4) break;
+      snapshot(); a4.status = 'done'; a4.finishedAt = Date.now();
+      if(a4.startedAt){
+        var fact = Math.round((a4.finishedAt - a4.startedAt)/60000);
+        a4.fact = fact;
+        /* фактическое время берём в расписание, только если оно правдоподобно:
+           иначе забытая кнопка «Завершить» съедала бы весь день */
+        if(fact >= 5 && fact <= a4.dur + 60){ a4.dur = fact; }
+        else { a4.stuck = true; }
+      }
+      save(); closeSheet(); render();
+      editCard(a4.id);
+      break;
+    }
+    case 'pay': {
+      var a5 = apptById(id); if(!a5) break;
+      snapshot(); a5.status = 'paid'; save(); closeSheet(); render(); toast('Оплата отмечена');
+      break;
+    }
+    case 'delAppt': {
+      snapshot();
+      DB.appts = DB.appts.filter(function(x){ return x.id !== id; });
+      save(); closeSheet(); render(); toast('Запись удалена, можно вернуть стрелкой наверху');
+      break;
+    }
+    case 'apptCard': apptCard(id); break;
+    case 'editCard': editCard(id); break;
+    case 'clientCard': clientCard(id); break;
+    case 'editClient': formClient(id); break;
+    case 'addClient': formClient(null); break;
+    case 'addAppt': formAppt(null); break;
+    case 'bookNext': formAppt(id); break;
+    case 'write': writeTo(id); break;
+    case 'allergy': formAllergy(id); break;
+    case 'saveAllergy': {
+      var ca = cli(id); if(!ca) break;
+      snapshot(); ca.allergy = val('al_date') || today();
+      save(); closeSheet(); render(); toast('Аллергопроба отмечена');
+      break;
+    }
+    case 'sendConfirm': sendSheet('confirm', id); break;
+    case 'sendRemind': sendSheet('remind', id); break;
+    case 'markSent': {
+      var mp = (id || '').split(':');
+      markSent(mp[0], mp[1]);
+      render(); closeSheet();
+      toast(mp[0] === 'confirm' ? 'Отмечено: подтверждение отправлено' : 'Отмечено: напоминание отправлено');
+      break;
+    }
+    case 'moveAppt': formMove(id); break;
+    case 'saveMove': {
+      var am = apptById(id); if(!am) break;
+      var nd = val('mv_date'), nt = val('mv_time');
+      if(!nd || !nt){ toast('Укажите дату и время'); break; }
+      if(nd === am.date && nt === am.time){ closeSheet(); toast('Время не изменилось'); break; }
+      snapshot();
+      am.date = nd; am.time = nt;
+      /* перенос обнуляет отметки: клиенту уходило другое время */
+      am.sentConfirm = null; am.sentRemind = null;
+      save(); closeSheet(); render();
+      var wm = overlapWarn(am);
+      if(wm) toast(wm, true);
+      else toast('Запись перенесена. Подтверждение нужно отправить заново');
+      break;
+    }
+    case 'addStock': formStock(); break;
+    case 'addClean': formClean(); break;
+
+    /* расписание: вид и шаг по датам */
+    case 'apptMode': VIEW.mode = id; if(!VIEW.date) VIEW.date = today(); render(); break;
+    case 'apptDay': VIEW.mode = 'day'; VIEW.date = id; render(); window.scrollTo(0, 0); break;
+    case 'apptNow': VIEW.date = today(); render(); break;
+    case 'apptPrev': case 'apptNext': {
+      var step = (name === 'apptNext') ? 1 : -1;
+      var md = VIEW.mode || 'week', cd = VIEW.date || today();
+      if(md === 'day') VIEW.date = shiftDays(cd, step);
+      else if(md === 'week') VIEW.date = shiftDays(weekStart(cd), step * 7);
+      else VIEW.date = shiftMonths(monthStart(cd), step);
+      render();
+      break;
+    }
+
+    /* заметки */
+    case 'addNote': formNote(null, id || ''); break;
+    case 'editNote': formNote(id, ''); break;
+    case 'noteParse': noteParsed(($('story') && $('story').value) || ''); break;
+    case 'saveNote': {
+      var ntxt = val('story').trim();
+      if(!ntxt){ toast('Заметка пустая — расскажите или впишите текст'); break; }
+      snapshot();
+      var nc = val('nt_client') || null;
+      var ex = id ? DB.notes.filter(function(x){ return x.id === id; })[0] : null;
+      if(ex){ ex.text = ntxt; ex.clientId = nc; }
+      else DB.notes.push({ id:uid(), date:today(), clientId:nc, text:ntxt });
+      save(); closeSheet(); render(); toast('Заметка сохранена');
+      break;
+    }
+    case 'delNote': {
+      snapshot();
+      DB.notes = DB.notes.filter(function(x){ return x.id !== id; });
+      save(); closeSheet(); render(); toast('Заметка удалена, можно вернуть стрелкой наверху');
+      break;
+    }
+    case 'closeSheet': closeSheet(); break;
+
+    case 'stockMinus': case 'stockPlus': {
+      var m = DB.stock.filter(function(x){ return x.id === id; })[0]; if(!m) break;
+      snapshot();
+      m.qty = Math.max(0, m.qty + (name === 'stockPlus' ? 1 : -1));
+      if(name === 'stockPlus' && m.qty > m.min) m.ordered = false;
+      save(); render();
+      break;
+    }
+    case 'orderStock': {
+      var m2 = DB.stock.filter(function(x){ return x.id === id; })[0]; if(!m2) break;
+      snapshot(); m2.ordered = true; save(); render(); toast('Отмечено как заказанное');
+      break;
+    }
+
+    case 'page':
+      if(id === 'notes') pageNotes();
+      if(id === 'services') pageServices();
+      if(id === 'money') pageMoney();
+      if(id === 'quality') pageQuality();
+      if(id === 'install') pageInstall();
+      if(id === 'backup') pageBackup();
+      if(id === 'settings') pageSettings();
+      break;
+
+    case 'doBackup': doBackup(); break;
+    case 'doRestore': doRestore(); break;
+    case 'restoreApply': restoreApply(); break;
+    case 'restoreCancel': restoreCancel(); break;
+
+    case 'voice': voiceToggle(); break;
+
+    case 'startBlank': {
+      DB = blank(); NEED_START = false;
+      save(); setTab('today');
+      toast('Кабинет готов. Заведите первого клиента');
+      break;
+    }
+    case 'startDemo': {
+      DB = seed(); NEED_START = false;
+      save(); setTab('today');
+      toast('Это пример. Очистить — «Ещё» → «Настройки»');
+      break;
+    }
+    case 'askWipe': {
+      openSheet('Очистить кабинет?',
+        '<div class="note">Будут удалены все клиенты, записи, формулы и остатки материалов. ' +
+        'Процедуры с ценами и список расходников останутся заготовкой.</div>' +
+        '<div class="note">Действие можно отменить стрелкой в шапке, пока кабинет открыт. ' +
+        'Если записи нужны — сначала сохраните копию: «Ещё» → «Резервная копия».</div>',
+        '<button class="btn primary" data-act="doWipe">Очистить</button>' +
+        '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+      break;
+    }
+    case 'doWipe': {
+      snapshot();
+      var keepTheme = DB.settings.theme;
+      DB = blank(); DB.settings.theme = keepTheme;
+      document.documentElement.setAttribute('data-theme', keepTheme || 'light');
+      save(); closeSheet(); setTab('today');
+      toast('Кабинет очищен. Вернуть — стрелкой в шапке');
+      break;
+    }
+    case 'askDemo': {
+      openSheet('Загрузить пример?',
+        '<div class="note">Кабинет заполнится демонстрационными клиентами, записями и формулами. ' +
+        'Ваши записи будут заменены.</div>' +
+        '<div class="note">Вернуть прежнее можно стрелкой в шапке.</div>',
+        '<button class="btn primary" data-act="doDemo">Загрузить пример</button>' +
+        '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+      break;
+    }
+    case 'doDemo': {
+      snapshot();
+      var th = DB.settings.theme;
+      DB = seed(); DB.settings.theme = th;
+      document.documentElement.setAttribute('data-theme', th || 'light');
+      save(); closeSheet(); setTab('today');
+      toast('Пример загружен. Вернуть — стрелкой в шапке');
+      break;
+    }
+
+    case 'closeDay': closeDaySheet(); break;
+    case 'pickOut': {
+      OUT_PICKED[id] = !OUT_PICKED[id];
+      var btn = document.querySelector('[data-act="pickOut"][data-id="' + id + '"]');
+      if(btn) btn.classList.toggle('on', !!OUT_PICKED[id]);
+      break;
+    }
+    case 'closeDayNothing': {
+      snapshot();
+      DB.settings.stockAskedOn = today();
+      save(); closeSheet(); render();
+      toast('День закрыт, материалы не трогала');
+      break;
+    }
+    case 'closeDaySave': {
+      var ids = Object.keys(OUT_PICKED).filter(function(k){ return OUT_PICKED[k]; });
+      snapshot();
+      var names = [];
+      ids.forEach(function(sid){
+        var m3 = DB.stock.filter(function(x){ return x.id === sid; })[0];
+        if(!m3) return;
+        m3.qty = Math.max(0, m3.qty - 1);
+        names.push(m3.name);
+      });
+      DB.settings.stockAskedOn = today();
+      save(); closeSheet(); render();
+      toast(names.length ? 'Списала: ' + names.length + ' — что ниже нормы, попадёт в «Нужно отметить»'
+                         : 'День закрыт, материалы не трогала');
+      break;
+    }
+
+    case 'setField': {
+      var sp = (id || '').split(SEP);
+      var inp = $('k_' + sp[0]); if(!inp) break;
+      /* повторное нажатие снимает значение — так проще исправить промах пальцем */
+      inp.value = (inp.value.trim().toLowerCase() === sp[1].toLowerCase()) ? '' : sp[1];
+      markHints();
+      break;
+    }
+
+    case 'applyStory': {
+      var txt = ($('story') && $('story').value) || '';
+      if(!txt.trim()){ toast('Сначала расскажите или продиктуйте'); break; }
+      var r = parseStory(txt);
+      CARD_FIELDS.forEach(function(f){
+        if(r.card[f] && $('k_' + f)) $('k_' + f).value = r.card[f];
+      });
+      if(r.rootsDays != null && $('k_rootsDays')) $('k_rootsDays').value = r.rootsDays;
+      if(r.toneDays != null && $('k_toneDays')) $('k_toneDays').value = r.toneDays;
+      if(r.complaint != null && $('k_complaint')) $('k_complaint').value = r.complaint;
+      if(r.redo != null && $('k_redo')) $('k_redo').value = r.redo ? '1' : '0';
+      var got = CARD_FIELDS.filter(function(f){ return r.card[f]; }).length;
+      var box = $('unparsed');
+      if(box){
+        box.innerHTML = r.rest.length
+          ? '<div class="card" style="background:var(--tint);border-color:var(--tintline);margin-bottom:12px">' +
+            '<div class="sec-t">Не поняла — впишите руками</div><div style="font-size:13px;line-height:1.5">' +
+            r.rest.map(esc).join('<br>') + '</div>' +
+            '<div class="hintline">Перенесите это в нужные поля руками или оставьте в заметке.</div></div>'
+          : '<div class="card" style="margin-bottom:12px"><div style="font-size:13px">Разобрано полностью.</div></div>';
+      }
+      markHints();
+      toast('Заполнила полей: ' + got + '. Проверьте');
+      break;
+    }
+
+    case 'saveCard': {
+      var a6 = apptById(id); if(!a6) break;
+      snapshot();
+      var card = {};
+      CARD_FIELDS.forEach(function(f){ card[f] = val('k_' + f).trim(); });
+      a6.card = card;
+      var rd2 = val('k_rootsDays'), td2 = val('k_toneDays');
+      a6.rootsDays = rd2 === '' ? null : (parseInt(rd2, 10) || null);
+      a6.toneDays  = td2 === '' ? null : (parseInt(td2, 10) || null);
+      a6.complaint = val('k_complaint');
+      a6.redo = val('k_redo') === '1';
+      a6.note = val('k_note');
+      save(); closeSheet(); render(); toast('Формула записана');
+      break;
+    }
+    case 'saveAppt': {
+      var s2 = svc(val('f_service'));
+      snapshot();
+      var newId = uid();
+      var na = {
+        id: newId, clientId: val('f_client'), serviceId: val('f_service'),
+        date: val('f_date'), time: val('f_time'), dur: s2.dur, price: s2.price,
+        status:'plan', card:{}, rootsDays:null, toneDays:null, complaint:'', redo:false,
+        note: val('f_note'), sentConfirm:null, sentRemind:null
+      };
+      DB.appts.push(na);
+      save(); setTab('appts');
+      var wo = overlapWarn(na);
+      if(wo) toast(wo, true);
+      /* подтверждение отправляется сразу: потом про него забывают */
+      sendSheet('confirm', newId);
+      break;
+    }
+    case 'saveClient': {
+      snapshot();
+      var name2 = val('cl_name').trim();
+      if(!name2){ toast('Впишите имя'); break; }
+      var fields = {
+        name:name2, phone:val('cl_phone'),
+        cycleRoots: parseInt(val('cl_roots'), 10) || 35,
+        cycleCut: parseInt(val('cl_cut'), 10) || 56,
+        link: val('cl_link'), note: val('cl_note'),
+        allergy: val('cl_allergy') || null
+      };
+      if(id){
+        var c4 = cli(id);
+        for(var kk in fields) if(fields.hasOwnProperty(kk)) c4[kk] = fields[kk];
+      } else {
+        fields.id = uid();
+        DB.clients.push(fields);
+      }
+      save(); closeSheet(); render(); toast('Сохранено');
+      break;
+    }
+    case 'saveStock': {
+      var n2 = val('st_name').trim();
+      if(!n2){ toast('Впишите название'); break; }
+      snapshot();
+      DB.stock.push({ id:uid(), name:n2, unit:val('st_unit') || 'шт',
+                      qty:parseInt(val('st_qty'), 10) || 0, min:parseInt(val('st_min'), 10) || 1,
+                      ordered:false, note:'' });
+      save(); closeSheet(); render(); toast('Материал добавлен');
+      break;
+    }
+    case 'saveClean': {
+      snapshot();
+      DB.clean.push({ id:uid(), kind:val('cn_kind'), date:val('cn_date'),
+                      count:parseInt(val('cn_count'), 10) || 0, note:val('cn_note') });
+      save(); closeSheet(); render(); toast('Дезинфекция записана');
+      break;
+    }
+    case 'saveSettings': {
+      snapshot();
+      DB.settings.workStart = val('setStart') || '09:00';
+      DB.settings.workEnd = val('setEnd') || '21:00';
+      DB.settings.place = val('setPlace').trim();
+      save(); closeSheet(); render(); toast('Настройки сохранены');
+      break;
+    }
+  }
+}
+function val(id){ var e = $(id); return e ? e.value : ''; }
+
+/* ================= каркас ================= */
+function setTab(t){ TAB = t; VIEW = {}; render(); window.scrollTo(0, 0); }
+
+/* Экран первого запуска. Мастер выбирает, начать с чистого кабинета
+   или посмотреть на готовом примере. До ответа ничего не сохраняется. */
+function renderStart(){
+  return '<div class="card" style="margin-top:8px">' +
+    '<div class="badge">ПЕРВЫЙ ЗАПУСК</div>' +
+    '<div class="h-who" style="margin-top:8px">Кабинет мастера</div>' +
+    '<div class="h-what">Записи, клиенты, формулы окрашивания, материалы и отчёты. ' +
+      'Всё хранится на этом телефоне и никуда не отправляется.</div>' +
+    '<div class="btns" style="margin-top:16px">' +
+      '<button class="btn primary" data-act="startBlank">Начать с чистого кабинета</button>' +
+      '<button class="btn" data-act="startDemo">Сначала посмотреть на примере</button>' +
+    '</div>' +
+    '<div class="hintline">В чистом кабинете уже заведены процедуры с ценами и список расходников — ' +
+      'их можно поправить под себя. Пример можно очистить в любой момент: «Ещё» → «Настройки».</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><div class="sec-t">С чего начать</div>' +
+    '<div style="font-size:13.5px;line-height:1.6">1. Завести клиентов — вкладка «Клиенты».<br>' +
+    '2. Записать их на приём — вкладка «Записи»: там же расписание на день, ' +
+      'на неделю и на месяц.<br>' +
+    '3. После приёма записать формулу — кнопка «Что делали». Быстрее всего голосом.<br>' +
+    '4. Внести остатки красок и оксидов — вкладка «Материалы».<br>' +
+    '5. Поставить иконку на экран телефона — подсказка появится сверху.</div></div>';
+}
+
+function render(){
+  var h = '';
+  if(NEED_START){
+    $('screen').innerHTML = renderStart();
+    $('topTitle').textContent = 'Точка красоты. Волосы';
+    $('topSub').textContent = 'выберите, с чего начать';
+    $('btnUndo').disabled = true;
+    return;
+  }
+  if(TAB === 'today') h = renderToday();
+  else if(TAB === 'clients') h = renderClients();
+  else if(TAB === 'appts') h = renderAppts();
+  else if(TAB === 'stock') h = renderStock();
+  else h = renderMore();
+  $('screen').innerHTML = h;
+  $('screen').scrollTop = 0;
+  Array.prototype.forEach.call(document.querySelectorAll('.nv'), function(b){
+    b.classList.toggle('on', b.getAttribute('data-tab') === TAB);
+  });
+  var q = $('cq');
+  if(q){
+    q.addEventListener('input', function(){
+      VIEW.q = q.value;
+      var pos = q.selectionStart;
+      render();
+      var nq = $('cq'); if(nq){ nq.focus(); try{ nq.setSelectionRange(pos, pos); }catch(e){} }
+    });
+  }
+  $('btnUndo').disabled = !UNDO.length;
+  paintSaved();
+}
+
+document.addEventListener('click', function(e){
+  /* ссылка на мессенджер: открываем как обычно, но отмечаем отправку */
+  var sent = e.target.closest('[data-sent]');
+  if(sent){ markSent(sent.getAttribute('data-sent'), sent.getAttribute('data-appt')); }
+  var el = e.target.closest('[data-act]');
+  if(el){ e.preventDefault(); act(el.getAttribute('data-act'), el.getAttribute('data-id')); return; }
+  var nv = e.target.closest('.nv');
+  if(nv){ setTab(nv.getAttribute('data-tab')); return; }
+});
+$('veil').addEventListener('click', closeSheet);
+$('shClose').addEventListener('click', closeSheet);
+$('btnUndo').addEventListener('click', undo);
+$('btnTheme').addEventListener('click', function(){
+  snapshot();
+  DB.settings.theme = (DB.settings.theme === 'dark') ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', DB.settings.theme);
+  save();
+});
+/* курсор стоит в поле ввода: там Ctrl+Z должен отменять набранный текст,
+   а не последнее действие в кабинете */
+function inField(el){
+  if(!el) return false;
+  if(el.isContentEditable) return true;
+  var t = (el.tagName || '').toLowerCase();
+  if(t === 'textarea') return true;
+  if(t === 'select') return true;
+  if(t === 'input'){
+    var ty = (el.type || 'text').toLowerCase();
+    return ['button','submit','reset','checkbox','radio','file','range','color'].indexOf(ty) < 0;
+  }
+  return false;
+}
+document.addEventListener('keydown', function(e){
+  var typing = inField(e.target) || inField(document.activeElement);
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !typing){ e.preventDefault(); undo(); }
+  if(e.key === 'Escape') closeSheet();
+});
+
+load();
+render();
+setInterval(function(){ if(TAB === 'today') render(); }, 60000);
+</script>
+</body>
+</html>
