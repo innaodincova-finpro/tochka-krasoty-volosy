@@ -79,6 +79,10 @@ a{color:var(--stop)}
        color:var(--p-ink);font-size:6px;font-weight:700;line-height:1.2;letter-spacing:.02em}
 .ab-t{font-size:13px;font-weight:600}
 .ab-x{background:none;border:none;color:var(--mut);font-size:17px;height:38px}
+/* полоса демонстрационного шаблона: охра — тот же цвет, которым кабинет
+   везде говорит «обратите внимание» */
+.addbar.demo{grid-template-columns:38px 1fr;border-color:var(--warn)}
+.addbar.demo .ab-t{color:var(--warn)}
 
 /* ---------- карточка «сейчас» ---------- */
 .hero{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
@@ -303,6 +307,13 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
    показывают, а не работают в нём, это правильнее, чем оставлять человека
    со старым, неполным примером. */
 var KEY = 'tochka-krasoty-volosy-v2';
+
+/* Демонстрационный шаблон. Собирается отдельным файлом: assemble_demo.py
+   заменяет false на true. В этом виде кабинет открывается сразу заполненным,
+   ничего не спрашивает при первом запуске и ничего не сохраняет — человек,
+   которому его показывают, может нажимать что угодно, а следующее открытие
+   вернёт пример в исходный вид, с датами от сегодняшнего дня. */
+var DEMO = false;
 var DB = null, UNDO = [], SAVED_AT = null;
 
 function pad(n){ return (n<10?'0':'') + n; }
@@ -427,13 +438,13 @@ function seed(){
      не имеют — на них и виден список тех, кому нужно написать. */
   var clients = [
     {id:'c1',  name:'Ирина Соколова',   phone:'+7 916 000-11-22', link:'whatsapp', cycleRoots:35, cycleCut:70, allergy:shiftDays(t,-210), note:'Седина около 40 %, корни закрывать плотно'},
-    {id:'c2',  name:'Марина Гуляева',   phone:'+7 903 000-33-44', link:'telegram', cycleRoots:35, cycleCut:49, allergy:shiftDays(t,-150), note:''},
+    {id:'c2',  name:'Марина Гуляева',   phone:'+7 903 000-33-44', link:'telegram', cycleRoots:null, cycleCut:null, allergy:shiftDays(t,-150), note:''},
     {id:'c3',  name:'Ольга Панкратова', phone:'+7 926 000-55-66', link:'whatsapp', cycleRoots:49, cycleCut:70, allergy:shiftDays(t,-320), note:'Сложное окрашивание, длина ниже лопаток'},
     {id:'c4',  name:'Дарья Ким',        phone:'+7 985 000-77-88', link:'telegram', cycleRoots:32, cycleCut:56, allergy:null,              note:'Волос тонкий, осветление держать под контролем'},
-    {id:'c5',  name:'Светлана Ершова',  phone:'+7 915 000-99-00', link:'whatsapp', cycleRoots:35, cycleCut:49, allergy:shiftDays(t,-95),  note:''},
+    {id:'c5',  name:'Светлана Ершова',  phone:'+7 915 000-99-00', link:'whatsapp', cycleRoots:null, cycleCut:null, allergy:shiftDays(t,-95),  note:''},
     {id:'c6',  name:'Анна Литвинова',   phone:'+7 909 111-22-33', link:'whatsapp', cycleRoots:56, cycleCut:70, allergy:shiftDays(t,-60),  note:''},
     {id:'c7',  name:'Юлия Бекетова',    phone:'+7 977 444-55-66', link:'telegram', cycleRoots:30, cycleCut:60, allergy:null,              note:'Раньше красилась чёрным, длина вытравлена'},
-    {id:'c8',  name:'Ксения Раева',     phone:'+7 962 777-88-99', link:'whatsapp', cycleRoots:42, cycleCut:56, allergy:shiftDays(t,-40),  note:'Каре, любит холодный тон'},
+    {id:'c8',  name:'Ксения Раева',     phone:'+7 962 777-88-99', link:'whatsapp', cycleRoots:null, cycleCut:null, allergy:shiftDays(t,-40),  note:'Каре, любит холодный тон'},
     {id:'c9',  name:'Наталья Фомина',   phone:'+7 906 222-33-44', link:'whatsapp', cycleRoots:28, cycleCut:49, allergy:shiftDays(t,-180), note:'Седина по краю роста волос'},
     {id:'c10', name:'Вера Логинова',    phone:'+7 968 555-66-77', link:'telegram', cycleRoots:35, cycleCut:56, allergy:shiftDays(t,-250), note:''}
   ];
@@ -658,6 +669,12 @@ function blank(){
 var NEED_START = false;
 
 function load(){
+  if(DEMO){
+    DB = seed();
+    NEED_START = false;
+    document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
+    return;
+  }
   try{
     var raw = localStorage.getItem(KEY);
     if(raw){ DB = JSON.parse(raw); }
@@ -669,10 +686,11 @@ function load(){
   if(DB.settings.stockAskedOn === undefined) DB.settings.stockAskedOn = null;
   if(!Array.isArray(DB.clean)) DB.clean = [];
   if(!Array.isArray(DB.notes)) DB.notes = [];
-  /* карточка клиента из более ранней сборки: один ритм разворачиваем в два */
+  /* карточка клиента из более ранней сборки: один ритм разворачиваем в два.
+     Если мастер его не задавала — оставляем пусто, кабинет посчитает сам. */
   DB.clients.forEach(function(c){
-    if(c.cycleRoots == null) c.cycleRoots = c.cycle || 35;
-    if(c.cycleCut == null) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : 56;
+    if(c.cycleRoots === undefined) c.cycleRoots = c.cycle || null;
+    if(c.cycleCut === undefined) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : null;
     if(c.allergy === undefined) c.allergy = null;
   });
   tidyStatuses();
@@ -696,6 +714,9 @@ function tidyStatuses(){
 
 var SAVE_OK = true;
 function save(silent){
+  /* в шаблоне для показа сохранять некуда и незачем: правки живут
+     до перезагрузки страницы */
+  if(DEMO){ SAVED_AT = null; paintSaved(); return; }
   try{
     localStorage.setItem(KEY, JSON.stringify(DB));
     SAVED_AT = new Date();
@@ -746,9 +767,41 @@ function lastVisitKind(clientId, kind){
 }
 function lastVisit(clientId){ return lastVisitKind(clientId, null); }
 
+/* Личный ритм кабинет считает сам — по её же приёмам: промежуток между
+   двумя окрашиваниями даёт срок по корням, между двумя стрижками — по стрижке.
+   Мастеру вводить нечего. Вписанное вручную число главнее посчитанного:
+   мастер знает про клиента то, чего в записях нет. */
+var CYCLE_DEFAULT = { color:35, cut:56 };
+
+function observedCycle(clientId, kind){
+  var list = DB.appts.filter(function(a){
+    return a.clientId === clientId && (a.status === 'paid' || a.status === 'done') &&
+           svc(a.serviceId).kind === kind;
+  }).sort(byTime);
+  if(list.length < 2) return null;
+  /* берём последние три промежутка: раньше клиент мог ходить по-другому */
+  var gaps = [];
+  for(var i = list.length - 1; i > 0 && gaps.length < 3; i--){
+    var g = daysBetween(list[i-1].date, list[i].date);
+    if(g > 0) gaps.push(g);
+  }
+  if(!gaps.length) return null;
+  var sum = 0;
+  gaps.forEach(function(g){ sum += g; });
+  return Math.round(sum / gaps.length);
+}
+
+function cycleOf(c, kind){
+  var own = (kind === 'color') ? c.cycleRoots : c.cycleCut;
+  if(own) return { days:own, by:'вписано вами' };
+  var obs = observedCycle(c.id, kind);
+  if(obs) return { days:obs, by:'посчитано по её приёмам' };
+  return { days:CYCLE_DEFAULT[kind], by:'пока обычный срок' };
+}
+
 function dueOne(c, kind){
   var lv = lastVisitKind(c.id, kind);
-  var cyc = (kind === 'color') ? (c.cycleRoots || 35) : (c.cycleCut || 56);
+  var cyc = cycleOf(c, kind).days;
   if(!lv) return { text:'ещё не было', level:0, days:null, has:false };
   var left = cyc - daysBetween(lv, today());
   if(left <= -7) return { text:'просрочено на ' + days(-left), level:2, days:left, has:true };
@@ -799,6 +852,11 @@ function toast(msg, sticky){
 }
 function paintSaved(){
   var el = $('savedAt'); if(!el) return;
+  if(DEMO){
+    el.classList.remove('bad');
+    el.textContent = 'пример для просмотра — записи не сохраняются';
+    return;
+  }
   if(!SAVE_OK){
     el.textContent = 'НЕ СОХРАНЯЕТСЯ — записи пропадут при перезагрузке';
     el.classList.add('bad');
@@ -894,7 +952,15 @@ function renderToday(){
   var d = today(), st = dayStats(d), now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
   var h = '';
 
-  if(!DB.settings.installHidden){
+  if(DEMO){
+    h += '<div class="addbar demo">' +
+           '<div class="ab-ic" aria-hidden="true"><span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
+           '<div><div class="ab-t">Это пример, чтобы посмотреть</div>' +
+           '<div class="muted">Клиенты и записи придуманы. Нажимайте что угодно: ничего ' +
+             'не сломается и никуда не отправится. Следующее открытие вернёт пример ' +
+             'в прежний вид.</div></div>' +
+         '</div>';
+  } else if(!DB.settings.installHidden){
     h += '<div class="addbar">' +
            '<div class="ab-ic" aria-hidden="true"><span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
            '<div><div class="ab-t">Поставьте иконку на экран телефона</div>' +
@@ -1617,13 +1683,14 @@ function pageSettings(){
       '<input class="inp" id="setPlace" value="' + esc(s.place || '') + '" placeholder="улица, дом, квартира, домофон"></div>' +
     '<div class="hintline">Подставляется в подтверждение записи и в напоминание накануне. ' +
     'Если оставить пустым, адрес в сообщения не попадёт.</div>' +
-    '<div class="sec-t" style="margin-top:20px">Начать заново</div>' +
-    '<div class="btns">' +
-      '<button class="btn" data-act="askWipe">Очистить все записи</button>' +
-      '<button class="btn" data-act="askDemo">Загрузить пример для показа</button>' +
-    '</div>' +
-    '<div class="hintline">Очистка удаляет клиентов, записи и формулы. Перед этим сохраните копию, ' +
-      'если записи ещё нужны.</div>';
+    (DEMO ? '' :
+      '<div class="sec-t" style="margin-top:20px">Начать заново</div>' +
+      '<div class="btns">' +
+        '<button class="btn" data-act="askWipe">Очистить все записи</button>' +
+        '<button class="btn" data-act="askDemo">Загрузить пример для показа</button>' +
+      '</div>' +
+      '<div class="hintline">Очистка удаляет клиентов, записи и формулы. Перед этим сохраните копию, ' +
+        'если записи ещё нужны.</div>');
   openSheet('Настройки', h,
     '<button class="btn primary" data-act="saveSettings">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
@@ -1655,19 +1722,23 @@ function formulaHtml(a){
 
 function clientCard(id){
   var c = cli(id), d = dueInfo(c);
+  var cr = cycleOf(c, 'color'), cc = cycleOf(c, 'cut');
   var hist = DB.appts.filter(function(a){ return a.clientId === id; }).sort(byTime).reverse();
   var last = hist.filter(function(a){
     return a.card && (a.card.brand || a.card.rootTone || a.card.lenTone);
   })[0];
   var h = '<div class="card"><div class="stats" style="grid-template-columns:1fr">' +
     '<div class="stat"><span>Телефон</span><b>' + esc(c.phone || '—') + '</b></div>' +
-    '<div class="stat"><span>Корни обновляет раз в</span><b>' + days(c.cycleRoots || 35) + '</b></div>' +
-    '<div class="stat"><span>Стрижётся раз в</span><b>' + days(c.cycleCut || 56) + '</b></div>' +
+    '<div class="stat"><span>Корни обновляет раз в</span><b>' + days(cr.days) + '</b></div>' +
+    '<div class="stat"><span>Стрижётся раз в</span><b>' + days(cc.days) + '</b></div>' +
     '<div class="stat"><span>Корни</span><b>' + esc(d.roots.text) + '</b></div>' +
     '<div class="stat"><span>Стрижка</span><b>' + esc(d.cut.text) + '</b></div>' +
     '<div class="stat"><span>Аллергопроба</span><b>' +
       (c.allergy ? shortDate(c.allergy) : 'не отмечена') + '</b></div>' +
-    '</div>' + (c.note ? '<div class="muted" style="margin-top:8px">' + esc(c.note) + '</div>' : '') + '</div>';
+    '</div>' +
+    '<div class="muted" style="margin-top:8px">Корни: ' + cr.by + '. Стрижка: ' + cc.by +
+    '. Поправить — «Изменить данные».</div>' +
+    (c.note ? '<div class="muted" style="margin-top:6px">' + esc(c.note) + '</div>' : '') + '</div>';
 
   if(needAllergy(c)){
     h += '<div class="card" style="margin-top:12px;background:var(--tint);border-color:var(--tintline)">' +
@@ -2363,18 +2434,25 @@ function formMove(id){
 }
 
 function formClient(id){
-  var c = id ? cli(id) : { name:'', phone:'', cycleRoots:35, cycleCut:56, note:'', link:'whatsapp', allergy:null };
+  var c = id ? cli(id) : { name:'', phone:'', cycleRoots:null, cycleCut:null, note:'', link:'whatsapp', allergy:null };
   var h =
     '<div class="field"><label class="lab">Имя</label><input class="inp" id="cl_name" value="' + esc(c.name) + '"></div>' +
     '<div class="field"><label class="lab">Телефон</label><input class="inp" id="cl_phone" inputmode="tel" value="' + esc(c.phone) + '"></div>' +
-    '<div class="two-col">' +
-      '<div class="field"><label class="lab">Корни обновляет раз в столько дней</label>' +
-        '<input class="inp" id="cl_roots" inputmode="numeric" value="' + (c.cycleRoots || 35) + '"></div>' +
-      '<div class="field"><label class="lab">Стрижётся раз в столько дней</label>' +
-        '<input class="inp" id="cl_cut" inputmode="numeric" value="' + (c.cycleCut || 56) + '"></div>' +
-    '</div>' +
-    '<div class="hintline">Сроки разные: корни обновляют раз в четыре-шесть недель, стрижку — ' +
-    'раз в шесть-десять. Кабинет позовёт по тому, который подойдёт раньше.</div>' +
+    /* Сроки при заведении клиента не спрашиваются: мастер их ещё не знает,
+       а кабинет посчитает сам, как только клиент придёт во второй раз.
+       У заведённого клиента поля есть — на случай, когда мастер знает лучше. */
+    (id
+      ? '<div class="two-col">' +
+          '<div class="field"><label class="lab">Корни обновляет раз в столько дней</label>' +
+            '<input class="inp" id="cl_roots" inputmode="numeric" value="' + (c.cycleRoots || '') +
+            '" placeholder="' + cycleOf(c, 'color').days + '"></div>' +
+          '<div class="field"><label class="lab">Стрижётся раз в столько дней</label>' +
+            '<input class="inp" id="cl_cut" inputmode="numeric" value="' + (c.cycleCut || '') +
+            '" placeholder="' + cycleOf(c, 'cut').days + '"></div>' +
+        '</div>' +
+        '<div class="hintline">Оставьте пустыми — кабинет посчитает сроки по её приёмам. ' +
+        'Вписанное число главнее посчитанного.</div>'
+      : '') +
     '<div class="two-col" style="margin-top:12px">' +
       '<div class="field"><label class="lab">Куда писать</label><select class="inp" id="cl_link">' +
         '<option value="whatsapp"' + (c.link === 'whatsapp' ? ' selected' : '') + '>WhatsApp</option>' +
@@ -2582,8 +2660,8 @@ function checkRestore(text, fname){
   if(!obj.settings.workEnd) obj.settings.workEnd = '21:00';
   if(!obj.settings.theme) obj.settings.theme = DB.settings.theme || 'light';
   obj.clients.forEach(function(c){
-    if(c.cycleRoots == null) c.cycleRoots = c.cycle || 35;
-    if(c.cycleCut == null) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : 56;
+    if(c.cycleRoots === undefined) c.cycleRoots = c.cycle || null;
+    if(c.cycleCut === undefined) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : null;
     if(c.allergy === undefined) c.allergy = null;
   });
 
@@ -2969,8 +3047,9 @@ function act(name, id){
       if(!name2){ toast('Впишите имя'); break; }
       var fields = {
         name:name2, phone:val('cl_phone'),
-        cycleRoots: parseInt(val('cl_roots'), 10) || 35,
-        cycleCut: parseInt(val('cl_cut'), 10) || 56,
+        /* пусто значит «считай сам»: null, а не число по умолчанию */
+        cycleRoots: parseInt(val('cl_roots'), 10) || null,
+        cycleCut: parseInt(val('cl_cut'), 10) || null,
         link: val('cl_link'), note: val('cl_note'),
         allergy: val('cl_allergy') || null
       };
