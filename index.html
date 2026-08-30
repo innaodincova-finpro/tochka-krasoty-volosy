@@ -115,14 +115,6 @@ a.btn.primary{color:var(--on-stop)}
 .btn.green{background:var(--ok);border-color:var(--ok);color:var(--on-ok);font-weight:600}
 .btn.ghost{background:transparent}
 .btn.sm{min-height:40px;font-size:13px;border-radius:9px}
-/* точка теперь означает ровно одно: идёт запись. Поэтому она всегда цветная
-   и всегда мигает, а в покое на кнопке стоит значок микрофона */
-.mic-dot{width:9px;height:9px;border-radius:50%;background:var(--stop);flex:none;
-         animation:pulse 1.1s ease-in-out infinite}
-.mic-ic{flex:none}
-.btn.rec{border-color:var(--stop);color:var(--stop);font-weight:600}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-@media (prefers-reduced-motion: reduce){ .mic-dot{animation:none} }
 .btn.wide{width:100%}
 
 /* ---------- строки списка ---------- */
@@ -222,11 +214,6 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
    больше места, чем есть в колонке, и без этого вылезают за край экрана */
 .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .two-col>*{min-width:0}
-/* строчка под полем: подсказка слева, кнопка «продиктовать» справа */
-.fld-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
-.linkbtn{background:none;border:none;padding:6px 0;color:var(--stop);font-size:12.5px;
-         font-weight:600;text-align:left;display:flex;align-items:center;gap:6px;min-height:32px}
-.linkbtn .mic-dot{margin:0}
 .hintline{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
 
 /* ---------- нижняя панель ---------- */
@@ -906,8 +893,7 @@ function openSheet(title, body, foot){
   $('sheet').classList.add('on'); $('veil').classList.add('on');
 }
 function closeSheet(){
-  if(typeof voiceStop === 'function') voiceStop();
-  if(typeof phoneStop === 'function') phoneStop();
+  if(DICT_TIMER){ clearTimeout(DICT_TIMER); DICT_TIMER = null; }
   $('sheet').classList.remove('on'); $('veil').classList.remove('on');
 }
 
@@ -1502,57 +1488,34 @@ function pageNotes(){
   openSheet('Заметки', h, '<button class="btn" data-act="closeSheet">Закрыть</button>');
 }
 
-/* Микрофон рисуется значком, а не точкой: серая точка на кнопке читалась
-   как «идёт запись» и пугала там, где ничего не записывалось. Точка теперь
-   появляется только во время записи и мигает. */
-function micIcon(){
-  return '<svg class="mic-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    '<rect x="9" y="2" width="6" height="11" rx="3"/>' +
-    '<path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
-}
+/* ================= голос: одна дорога на все поля =================
 
-/* Блок записи голосом целиком: поле, кнопка микрофона и подсказка.
+   Раньше их было две: собственная запись кабинета кнопкой «Записать голосом»
+   и микрофон на клавиатуре телефона. Кнопка появлялась не во всех полях,
+   работала не на всех телефонах и могла молча не начаться — а мастер видел
+   то «Слушаю», то ничего, то кнопку возле одного поля и пустоту возле
+   другого. Это и была та самая хлипкость.
 
-   Режим 'text' — заметка: кабинет сам расставляет знаки препинания и
-   разбивает надиктованное на предложения, чтобы это можно было потом читать.
-   Режим 'formula' — «Что делали»: знаки препинания там вредны, «точка»
-   означает точку в тоне («семь точка один»), поэтому текст остаётся как
-   сказан, но каждый кусок между паузами уходит на свою строку. */
+   Осталась одна дорога — микрофон на клавиатуре. Он есть в каждом поле, где
+   вообще можно печатать, всегда, и мастер им уже пользуется. Кабинет ничего
+   не записывает и ничего не просит нажать: он только приводит в порядок то,
+   что телефон написал. Кнопок, связанных с голосом, в кабинете больше нет. */
+
 function voiceBlock(label, placeholder, value, mode){
   var forText = mode !== 'formula';
   return '<div class="field"><label class="lab">' + esc(label) + '</label>' +
     '<textarea class="inp" id="story" data-mode="' + (forText ? 'text' : 'formula') + '" ' +
     'placeholder="' + esc(placeholder) + '">' + esc(value || '') + '</textarea>' +
-    '<div id="voiceCtl"></div></div>';
+    '<div class="hintline">' + esc(voiceHint(forText)) + '</div></div>';
 }
 
-/* Кнопки под полем перерисовываются на ходу: пока кабинет думает, что умеет
-   слушать сам, там кнопка записи; как только выяснилось, что не умеет, —
-   кнопка расстановки знаков для текста, надиктованного с клавиатуры. */
-function voiceCtlPaint(){
-  var box = $('voiceCtl'), area = $('story');
-  if(!box || !area) return;
-  var forText = area.getAttribute('data-mode') !== 'formula';
-  if(voiceReady()){
-    box.innerHTML = '<button class="btn sm wide" style="margin-top:10px" id="micBtn" data-act="voice">' +
-      micIcon() + 'Записать голосом</button>' +
-      '<div class="hintline" id="micHint">' + esc(micHintText(forText)) + '</div>';
-  } else {
-    box.innerHTML = '<button class="btn sm wide" style="margin-top:10px" data-act="punct">' +
-      (forText ? 'Расставить знаки' : 'Разбить по строкам') + '</button>' +
-      '<div class="hintline">' + esc(voiceWhyNot()) + '</div>';
-  }
-  watchDictation(area);
-}
-
-function micHintText(forText){
+function voiceHint(forText){
   if(!forText){
-    return 'Говорите обычным голосом, можно с паузами. Каждый кусок встанет на свою строку. ' +
-           '«Точка» здесь означает точку в тоне: «семь точка один».';
+    return 'Печатайте или диктуйте микрофоном на клавиатуре. Каждый кусок между паузами ' +
+           'встанет на свою строку. «Точка» здесь означает точку в тоне: «семь точка один».';
   }
-  return 'Говорите обычным голосом. Точки, запятые и большие буквы кабинет расставит сам — ' +
-         'называть знаки вслух не нужно.';
+  return 'Печатайте или диктуйте микрофоном на клавиатуре. Точки, запятые и большие буквы ' +
+         'кабинет расставит сам, как только вы договорите.';
 }
 
 /* ================= паузы при диктовке с клавиатуры =================
@@ -1574,10 +1537,16 @@ function dictReset(v){ DICT_MARKS = []; DICT_LAST = 0; DICT_PREV = String(v || '
 var DICT_TIMER = null;
 var DICT_QUIET = 3000;                  /* столько тишины = диктовка закончилась */
 
+/* Наблюдение вешается на любое поле, куда можно диктовать: заметку, формулу,
+   телефон. Что делать с надиктованным, поле говорит само — атрибутом
+   data-mode. Отдельных кнопок ни у одного из них нет. */
 function watchDictation(area){
-  if(area.dataset.watched) return;
+  if(!area || area.dataset.watched) return;
   area.dataset.watched = '1';
   dictReset(area.value);
+
+  /* вернулись в поле — счёт пауз начинается заново, чужие отметки не в счёт */
+  area.addEventListener('focus', function(){ dictReset(area.value); });
 
   area.addEventListener('input', function(){
     var now = Date.now(), val = area.value;
@@ -1605,11 +1574,20 @@ function watchDictation(area){
   });
 }
 
-/* Та же расстановка, но молча: без сообщений, чтобы не мельтешить. */
+/* Приведение поля в порядок — молча, без сообщений, чтобы не мельтешить. */
 function punctSilent(area){
   if(!area || !area.value.trim()) return;
-  var forText = area.getAttribute('data-mode') !== 'formula';
-  var now = punctuate(area.value, forText);
+  var mode = area.getAttribute('data-mode');
+  var now;
+
+  if(mode === 'phone'){
+    now = tidyPhone(area.value);
+    /* «+7», которое стоит подсказкой, стирать нельзя: мастер только начал */
+    if(!now) return;
+  } else {
+    now = punctuate(area.value, mode !== 'formula');
+  }
+
   if(!now || now === area.value) return;
   area.value = now;
   dictReset(now);
@@ -1660,17 +1638,6 @@ function punctuate(text, forText){
   return assemblePieces(parts, forText);
 }
 
-function punctField(){
-  var area = $('story'); if(!area) return;
-  var forText = area.getAttribute('data-mode') !== 'formula';
-  var was = area.value;
-  var now = punctuate(was, forText);
-  if(!now || now === was){ toast('Здесь нечего править'); return; }
-  area.value = now;
-  dictReset(now);
-  toast('Готово. Поправить можно прямо в поле');
-}
-
 function formNote(id, preClient){
   var n = id ? DB.notes.filter(function(x){ return x.id === id; })[0] : null;
   var cur = n ? n.clientId : (preClient || '');
@@ -1691,7 +1658,7 @@ function formNote(id, preClient){
   if(id) foot += '<button class="btn" data-act="delNote" data-id="' + id + '">Удалить</button>';
   foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
   openSheet(id ? 'Заметка' : 'Новая заметка', h, foot);
-  voiceCtlPaint();
+  watchDictation($('story'));
 }
 
 /* Показ того, что кабинет расслышал в надиктованном. Ничего не сохраняет:
@@ -2066,51 +2033,6 @@ function apptCard(id){
   openSheet(c.name, h, foot);
 }
 
-/* ================= запись голосом =================
-   Распознавание идёт средствами браузера и не уходит с устройства.
-   Работает в Chrome и Edge и только когда кабинет открыт по адресу https —
-   с файла на диске браузер микрофон не отдаёт. В Safari и Firefox кнопки нет,
-   там остаётся системная диктовка. */
-var REC = null, REC_ON = false, REC_BASE = '', REC_RAW = [];
-
-function isIOS(){
-  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-function fromIcon(){
-  return navigator.standalone === true ||
-         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-}
-/* Раньше кабинет на iPhone с иконки даже не пробовал слушать сам: считалось,
-   что Apple там распознавание не даёт. Проверять это заранее нельзя, а вреда
-   от попытки нет — поэтому теперь он пробует, и переключается на клавиатуру
-   только если запись действительно не пошла. */
-var SR_DEAD = false;
-
-function voiceReady(){
-  if(SR_DEAD) return false;
-  if(!(window.SpeechRecognition || window.webkitSpeechRecognition)) return false;
-  /* с файла на диске микрофон браузер не отдаёт */
-  var addr = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  return !!addr;
-}
-
-function voiceWhyNot(){
-  return 'Диктуйте микрофоном на клавиатуре телефона. Знаки кабинет расставит сам, ' +
-         'как только вы договорите. Кнопка — если не хочется ждать.';
-}
-
-/* Запись не пошла: больше кнопку не предлагаем, показываем путь через
-   клавиатуру. Экран перерисовывается, чтобы подсказка сменилась сразу. */
-function voiceGiveUp(msg){
-  SR_DEAD = true;
-  REC_ON = false;
-  if(REC){ try{ REC.abort(); }catch(e){} }
-  voiceCtlPaint();
-  phonePaint();
-  toast(msg || 'Здесь кабинет слушать не может. Диктуйте микрофоном на клавиатуре', true);
-}
-
 /* ================= знаки препинания в надиктованном =================
 
    Ни один телефон не расставляет знаки в русской речи сам. У Apple
@@ -2332,122 +2254,6 @@ function speechPiece(raw){
   });
 }
 
-function micPaint(){
-  var b = $('micBtn'); if(!b) return;
-  var area = $('story');
-  var forText = !area || area.getAttribute('data-mode') !== 'formula';
-  b.classList.toggle('rec', REC_ON);
-  b.innerHTML = REC_ON
-    ? '<span class="mic-dot"></span>Остановить запись'
-    : micIcon() + 'Записать голосом';
-  var hint = $('micHint');
-  if(hint) hint.textContent = REC_ON
-    ? 'Слушаю. Говорите как обычно; там, где вы делаете паузу, начнётся новое предложение. ' +
-      'Нажмите «Остановить», когда закончите.'
-    : micHintText(forText);
-}
-
-function voiceStop(){
-  REC_ON = false;
-  if(REC){ try{ REC.stop(); }catch(e){} }
-  var area = $('story');
-  if(area) area.value = area.value.replace(/\s+$/, '');
-  micPaint();
-}
-
-function voiceToggle(){
-  if(REC_ON){ voiceStop(); return; }
-  var area = $('story'); if(!area) return;
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ toast('Этот браузер не умеет распознавать речь', true); return; }
-
-  var forText = area.getAttribute('data-mode') !== 'formula';
-  /* Разделитель кусков: в заметке — перевод строки между предложениями,
-     в формуле — тоже перевод строки, но без всякой правки самого текста.
-     Разбор формулы переносы строк не замечает: для него это пробелы. */
-  REC = new SR();
-  REC.lang = 'ru-RU';
-  REC.continuous = true;
-  REC.interimResults = true;
-  /* Куски речи копятся сырыми, а поле каждый раз собирается заново из всех
-     сразу. Иначе оборванную фразу — «покрасить… в тёмный цвет» — уже не
-     склеить: предыдущее предложение к этому моменту было бы закрыто точкой. */
-  REC_BASE = area.value ? area.value.replace(/\s+$/, '') : '';
-  REC_RAW = [];
-  REC_ON = true;
-  micPaint();
-
-  function repaint(interim){
-    var body = assemblePieces(REC_RAW, forText);
-    var all = [REC_BASE, body, String(interim || '').trim()].filter(Boolean).join('\n');
-    area.value = all;
-    area.scrollTop = area.scrollHeight;
-  }
-
-  /* Проверка вместо гадания: если за пять секунд запись так и не началась,
-     значит здесь она недоступна — переходим на клавиатуру и больше кнопку
-     не показываем. Раньше кабинет решал это заранее и мог ошибаться. */
-  var started = false;
-  REC.onstart = REC.onaudiostart = function(){ started = true; };
-  setTimeout(function(){
-    if(REC_ON && !started) voiceGiveUp();
-  }, 5000);
-
-  REC.onresult = function(e){
-    started = true;
-    var now = '';
-    for(var i = e.resultIndex; i < e.results.length; i++){
-      var t = e.results[i][0].transcript;
-      if(e.results[i].isFinal){ if(String(t).trim()) REC_RAW.push(String(t).trim()); }
-      else now += t;
-    }
-    repaint(now);
-  };
-
-  REC.onerror = function(e){
-    if(e.error === 'aborted') return;
-    /* здесь распознавание не работает вовсе — предлагаем клавиатуру,
-       а не просим повторить то, что не заработает */
-    if(e.error === 'not-allowed' || e.error === 'service-not-allowed' ||
-       e.error === 'audio-capture' || e.error === 'network' || !started){
-      voiceGiveUp(e.error === 'not-allowed' || e.error === 'service-not-allowed'
-        ? 'Микрофон не разрешён. Диктуйте микрофоном на клавиатуре'
-        : null);
-      return;
-    }
-    REC_ON = false; micPaint();
-    toast(e.error === 'no-speech'
-      ? 'Ничего не услышала. Проверьте, что микрофон не закрыт'
-      : 'Не получилось записать голосом', true);
-  };
-
-  /* браузер сам обрывает запись после паузы — продолжаем, пока не нажали «Остановить» */
-  REC.onend = function(){
-    if(REC_ON){ try{ REC.start(); }catch(e){ REC_ON = false; micPaint(); } }
-    else micPaint();
-  };
-
-  try{ REC.start(); }
-  catch(e){ voiceGiveUp('Микрофон занят другой программой'); }
-}
-
-/* ================= номер телефона голосом =================
-
-   На клавиатуре с цифрами у iPhone нет кнопки микрофона: Apple её там не
-   рисует. Поэтому номер нельзя было продиктовать вообще никак — только
-   набрать пальцем. Кнопка «Продиктовать» решает это двумя путями.
-
-   Если кабинет открыт по адресу в браузере, распознавание речи работает
-   само: кабинет слушает и сам пишет цифры в поле.
-
-   Если кабинет запущен с иконки на iPhone, Apple распознавание не отдаёт.
-   Тогда кнопка переключает поле на буквенную клавиатуру — на ней микрофон
-   есть, и диктовка идёт средствами телефона. Обратно поле переключается той
-   же кнопкой или само после сохранения.
-*/
-
-var PH_REC = null, PH_ON = false;
-
 /* Числительные телефона считаются отдельно от формулы: тут нужны сотни
    («девятьсот двенадцать» — это 912, а не 900 и 12), а в формуле сотен нет
    и лишние слова там только мешали бы. */
@@ -2483,7 +2289,8 @@ function tidyPhone(text){
 
   words.forEach(function(w){
     if(w === 'плюс' || w === '+'){ closeGroup(); out.push({ t:'+', one:false }); return; }
-    if(/^[0-9]+$/.test(w)){ closeGroup(); out.push({ t:w, one:false }); return; }
+    /* уже готовые цифры, в том числе с плюсом впереди — «+7» из подсказки */
+    if(/^\+?[0-9]+$/.test(w)){ closeGroup(); out.push({ t:w, one:false }); return; }
     if(!PHONE_NUM.hasOwnProperty(w)){ closeGroup(); return; }  /* слово не про число */
     var v = PHONE_NUM[w];
     /* Число продолжается, только если предыдущая часть — круглая сотня или
@@ -2507,105 +2314,10 @@ function tidyPhone(text){
 
   var done = glued.map(function(x){ return x.t; }).join(' ')
                   .replace(/\+\s+/g, '+').replace(/\s+/g, ' ').trim();
+  /* в поле уже стояло «+7», а мастер назвала номер целиком, с «плюс семь» —
+     код страны не должен удвоиться */
+  done = done.replace(/^(\+?7)\s*\+?7(?![0-9])/, '$1');
   return phoneEmpty(done) ? '' : done;
-}
-
-/* Цифровая клавиатура нужна не всем и не всегда: на ней у iPhone нет
-   микрофона. Поэтому там, где кабинет не может слушать сам, поле по
-   умолчанию открывает обычную клавиатуру — на ней микрофон есть, — а
-   цифровую можно позвать одной кнопкой. */
-function phoneNumeric(){
-  var f = $('cl_phone');
-  return !!f && f.getAttribute('inputmode') === 'tel';
-}
-
-function phonePaint(){
-  var b = $('cl_phone_btn'), hint = $('cl_phone_hint'), f = $('cl_phone');
-  if(!b || !hint || !f) return;
-  if(PH_ON){
-    b.innerHTML = '<span class="mic-dot"></span>Остановить';
-    b.classList.add('rec');
-    hint.textContent = 'Слушаю. Называйте цифры подряд, можно с паузами.';
-    return;
-  }
-  b.classList.remove('rec');
-  if(voiceReady()){
-    b.innerHTML = micIcon() + 'Продиктовать';
-    hint.textContent = 'Или наберите номер на клавиатуре.';
-    return;
-  }
-  if(phoneNumeric()){
-    b.innerHTML = 'Клавиатура с буквами';
-    hint.textContent = 'Клавиатура с цифрами. Микрофона на ней нет.';
-  } else {
-    b.innerHTML = 'Клавиатура с цифрами';
-    hint.textContent = 'Микрофон — на клавиатуре, слева от пробела.';
-  }
-}
-
-/* Клавиатуру у уже открытого поля iPhone не перестраивает, сколько ни меняй
-   ему inputmode: он показывает ту, что построил при первом касании. Поэтому
-   поле подменяется на свою же копию — для телефона это новое поле, и
-   клавиатуру он собирает заново. */
-function phoneKeys(){
-  var old = $('cl_phone'); if(!old) return;
-  var toNumeric = !phoneNumeric();
-  var fresh = old.cloneNode(false);
-  fresh.value = toNumeric ? tidyPhone(old.value) : old.value;
-  if(toNumeric) fresh.setAttribute('inputmode', 'tel');
-  else fresh.removeAttribute('inputmode');
-  old.parentNode.replaceChild(fresh, old);
-  phonePaint();
-  /* фокус — тут же, в том же касании: по таймеру iPhone клавиатуру не поднимет */
-  fresh.focus();
-  try{ fresh.setSelectionRange(fresh.value.length, fresh.value.length); }catch(e){}
-}
-
-function phoneStop(){
-  PH_ON = false;
-  if(PH_REC){ try{ PH_REC.stop(); }catch(e){} }
-  var f = $('cl_phone');
-  if(f) f.value = tidyPhone(f.value);
-  phonePaint();
-}
-
-function phoneVoice(){
-  var f = $('cl_phone'); if(!f) return;
-  /* там, где кабинет слушать не может, кнопка меняет клавиатуру */
-  if(!voiceReady()){ phoneKeys(); return; }
-
-  if(PH_ON){ phoneStop(); return; }
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  PH_REC = new SR();
-  PH_REC.lang = 'ru-RU';
-  PH_REC.continuous = true;
-  PH_REC.interimResults = true;
-  var base = f.value ? f.value + ' ' : '';
-  PH_ON = true;
-  phonePaint();
-
-  PH_REC.onresult = function(e){
-    var done = '', now = '';
-    for(var i = e.resultIndex; i < e.results.length; i++){
-      var t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) done += t; else now += t;
-    }
-    if(done) base = base + done + ' ';
-    f.value = tidyPhone(base + now);
-  };
-  PH_REC.onerror = function(e){
-    if(e.error === 'aborted') return;
-    PH_ON = false; phonePaint();
-    toast(e.error === 'not-allowed' || e.error === 'service-not-allowed'
-      ? 'Браузер не дал доступ к микрофону. Разрешите его в настройках сайта'
-      : 'Не получилось записать голосом. Наберите номер вручную', true);
-  };
-  PH_REC.onend = function(){
-    if(PH_ON){ try{ PH_REC.start(); }catch(e){ PH_ON = false; phonePaint(); } }
-    else phonePaint();
-  };
-  try{ PH_REC.start(); }
-  catch(e){ PH_ON = false; phonePaint(); toast('Микрофон занят другой программой', true); }
 }
 
 /* ================= разбор надиктованной формулы =================
@@ -3054,7 +2766,7 @@ function editCard(id){
   openSheet('Что делали', h,
     '<button class="btn primary" data-act="saveCard" data-id="' + a.id + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
-  voiceCtlPaint();
+  watchDictation($('story'));
   markHints();
 }
 
@@ -3111,18 +2823,14 @@ function formClient(id){
   var c = id ? cli(id) : { name:'', phone:'', cycleRoots:null, cycleCut:null, note:'', link:'whatsapp', allergy:null };
   var h =
     '<div class="field"><label class="lab">Имя</label><input class="inp" id="cl_name" value="' + esc(c.name) + '"></div>' +
-    /* Микрофона на цифровой клавиатуре у iPhone нет. Поэтому там, где
-       кабинет не может слушать сам, поле открывает обычную клавиатуру —
-       на ней микрофон есть, — и в поле уже стоит «+7 », чтобы набирать
-       или диктовать оставалось только сами цифры. Цифровая клавиатура
-       вызывается кнопкой рядом. */
+    /* Обычная клавиатура, а не цифровая: микрофона на цифровой у iPhone нет,
+       а цифры на обычной — одно нажатие «123». «+7 » уже стоит в поле, чтобы
+       набирать или диктовать оставалось только сами цифры. Кнопок нет: слова
+       превращаются в цифры сами, как только мастер договорит. */
     '<div class="field"><label class="lab">Телефон</label>' +
-      '<input class="inp" id="cl_phone"' + (voiceReady() ? ' inputmode="tel"' : '') +
-        ' value="' + esc(c.phone || (id ? '' : '+7 ')) + '">' +
-      '<div class="fld-row">' +
-        '<span class="hintline" id="cl_phone_hint" style="margin:0"></span>' +
-        '<button class="linkbtn" id="cl_phone_btn" data-act="phoneVoice"></button>' +
-      '</div></div>' +
+      '<input class="inp" id="cl_phone" data-mode="phone" value="' +
+        esc(c.phone || (id ? '' : '+7 ')) + '">' +
+      '<div class="hintline">Микрофон — на клавиатуре. Цифры — кнопка «123».</div></div>' +
     /* Сроки при заведении клиента не спрашиваются: мастер их ещё не знает,
        а кабинет посчитает сам, как только клиент придёт во второй раз.
        У заведённого клиента поля есть — на случай, когда мастер знает лучше. */
@@ -3154,8 +2862,7 @@ function formClient(id){
   openSheet(id ? 'Изменить клиента' : 'Новый клиент', h,
     '<button class="btn primary" data-act="saveClient" data-id="' + (id || '') + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
-  PH_ON = false;
-  phonePaint();
+  watchDictation($('cl_phone'));
 }
 
 function formAllergy(id){
@@ -3589,8 +3296,6 @@ function act(name, id){
     case 'restoreApply': restoreApply(); break;
     case 'restoreCancel': restoreCancel(); break;
 
-    case 'voice': voiceToggle(); break;
-    case 'punct': punctField(); break;
     case 'phoneVoice': phoneVoice(); break;
 
     case 'startBlank': {
