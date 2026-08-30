@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Точка. Волосы">
+<meta name="apple-mobile-web-app-title" content="Точка красоты">
 <meta name="application-name" content="Точка красоты. Волосы">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="icon" type="image/png" href="./icon-192.png">
@@ -74,9 +74,11 @@ a{color:var(--stop)}
 /* ---------- полоса про ярлык ---------- */
 .addbar{background:var(--tint);border:1px solid var(--tintline);border-radius:12px;padding:11px 12px;
         display:grid;grid-template-columns:38px 1fr 26px;gap:11px;align-items:center}
+/* тот же знак, что и на настоящем ярлыке: на полоске он размером
+   с ноготь, и буквы там не читаются — остаются одни ножницы */
 .ab-ic{width:38px;height:38px;border-radius:10px;background:var(--panel);
-       display:flex;flex-direction:column;align-items:center;justify-content:center;
-       color:var(--p-ink);font-size:6px;font-weight:700;line-height:1.2;letter-spacing:.02em}
+       display:flex;align-items:center;justify-content:center;color:var(--p-ink)}
+.ab-ic svg{display:block}
 .ab-t{font-size:13px;font-weight:600}
 .ab-x{background:none;border:none;color:var(--mut);font-size:17px;height:38px}
 /* полоса демонстрационного шаблона: охра — тот же цвет, которым кабинет
@@ -352,6 +354,9 @@ function dateAcc(isoStr){
   return WDAYS_ACC[d.getDay()] + ', ' + (+p[2]) + ' ' + MONTHS[+p[1]-1];
 }
 function shortDate(isoStr){
+  /* даты может не быть — копию ещё не делали, приёма не было.
+     Пусть строка выйдет прочерком, а не уронит экран целиком. */
+  if(!isoStr) return '—';
   var p = isoStr.split('-');
   return (+p[2]) + ' ' + MONTHS[+p[1]-1];
 }
@@ -634,7 +639,7 @@ function seed(){
     services:services, clients:clients, appts:appts, stock:stock, clean:clean, notes:notes,
     settings:{ theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null,
                place:'Ленинский проспект, 74, кв. 12, домофон 12', signature:'',
-               stockAskedOn:null }
+               stockAskedOn:null, backupSnoozed:null }
   };
 }
 
@@ -660,7 +665,7 @@ function blank(){
     ],
     clean:[], notes:[],
     settings:{ theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null,
-               place:'', signature:'', stockAskedOn:null }
+               place:'', signature:'', stockAskedOn:null, backupSnoozed:null }
   };
 }
 
@@ -867,6 +872,15 @@ function paintSaved(){
   el.textContent = SAVED_AT ? ('сохранено ' + pad(SAVED_AT.getHours()) + ':' + pad(SAVED_AT.getMinutes())) : '';
 }
 
+/* Ножницы с настоящего ярлыка. Рисуются в двух местах: на полоске
+   «поставьте иконку» и на образце иконки в разделе про неё. */
+function scissorsMark(px){
+  return '<svg viewBox="0 0 100 100" width="' + px + '" height="' + px + '" fill="none" ' +
+    'stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M30 64 L72 16"/><path d="M70 64 L28 16"/>' +
+    '<circle cx="30" cy="76" r="12"/><circle cx="70" cy="76" r="12"/></svg>';
+}
+
 /* ================= шторка ================= */
 function openSheet(title, body, foot){
   $('shTitle').textContent = title;
@@ -981,7 +995,7 @@ function renderToday(){
 
   if(DEMO){
     h += '<div class="addbar demo">' +
-           '<div class="ab-ic" aria-hidden="true"><span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
+           '<div class="ab-ic" aria-hidden="true">' + scissorsMark(21) + '</div>' +
            '<div><div class="ab-t">Это пример, чтобы посмотреть</div>' +
            '<div class="muted">Клиенты и записи придуманы. Нажимайте что угодно: ничего ' +
              'не сломается и никуда не отправится. Следующее открытие вернёт пример ' +
@@ -989,12 +1003,13 @@ function renderToday(){
          '</div>';
   } else if(!DB.settings.installHidden){
     h += '<div class="addbar">' +
-           '<div class="ab-ic" aria-hidden="true"><span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
+           '<div class="ab-ic" aria-hidden="true">' + scissorsMark(21) + '</div>' +
            '<div><div class="ab-t">Поставьте иконку на экран телефона</div>' +
            '<div class="muted">чтобы заходить одним касанием, а не искать ссылку</div></div>' +
            '<button class="ab-x" data-act="hideInstall" aria-label="Скрыть">✕</button>' +
          '</div>';
   }
+
   if(backupDue()) h += backupBar();
 
   var running = st.list.filter(function(a){ return a.status === 'running'; })[0];
@@ -1421,13 +1436,18 @@ function renderStock(){
 /* ================= экран «Ещё» ================= */
 function renderMore(){
   var h = '<div class="list">';
+  /* у копии вместо стрелки — её состояние: иначе о ней вспоминают,
+     только когда телефон уже потерян */
   var lbm = DB.settings.lastBackup;
   var staleM = !DEMO && (!lbm || daysBetween(lbm, today()) >= 7);
   [['Заметки голосом','notes'], ['Процедуры и цены','services'], ['Деньги и отчёты','money'],
    ['Качество работы','quality'], ['Иконка на телефоне','install'],
    ['Резервная копия','backup'], ['Настройки','settings']].forEach(function(p){
-    var mark = p[1] !== 'backup' ? '›'
-             : (staleM ? (lbm ? 'пора обновить' : 'ещё не делали') : 'от ' + shortDate(lbm));
+    var mark = '›';
+    if(p[1] === 'backup' && !DEMO){
+      mark = !lbm ? 'ещё не делали'
+           : (staleM ? 'пора обновить' : 'от ' + shortDate(lbm));
+    }
     h += '<button class="item plain" data-act="page" data-id="' + p[1] + '">' +
          '<div class="i-who">' + p[0] + '</div><div class="i-sum">' + mark + '</div></button>';
   });
@@ -1668,10 +1688,11 @@ function pageInstall(){
   var h =
     '<div style="display:flex;flex-direction:column;align-items:center;gap:9px;margin-bottom:16px">' +
       '<div style="width:88px;height:88px;border-radius:21px;background:var(--panel);display:flex;' +
-        'flex-direction:column;align-items:center;justify-content:center;color:var(--p-ink);' +
-        'font-size:13px;font-weight:700;line-height:1.25;letter-spacing:.02em">' +
-        '<span>ТОЧКА</span><span>КРАСОТЫ</span><span>ВОЛОСЫ</span></div>' +
-      '<div style="font-size:13px">Точка красоты. Волосы</div>' +
+        'flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--p-ink)">' +
+        scissorsMark(36) +
+        '<div style="font-size:9.5px;font-weight:700;line-height:1.15;letter-spacing:.02em;' +
+          'text-align:center">ТОЧКА<br>КРАСОТЫ</div></div>' +
+      '<div style="font-size:13px">Точка красоты</div>' +
       '<div class="muted" style="text-align:center">Так кабинет выглядит на экране телефона. Открывается на весь экран, без адресной строки браузера.</div>' +
     '</div>' +
     '<div class="card"><div class="sec-t">Android, браузер Chrome</div>' +
@@ -2639,8 +2660,8 @@ function doBackup(){
   a.href = url; a.download = 'tochka-krasoty-volosy-' + today() + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-  /* на первом запуске это учебное нажатие: сохранить базу нельзя, иначе
-     кабинет счтёт выбор сделанным и больше не спросит */
+  /* на первом запуске это учебное нажатие: сохранять базу нельзя, иначе
+     кабинет сочтёт выбор сделанным и больше не спросит, с чего начать */
   if(NEED_START){
     toast('Файл копии в загрузках телефона — теперь вы знаете дорогу', true);
     return;
@@ -3250,10 +3271,11 @@ load();
 render();
 setInterval(function(){ if(TAB === 'today') render(); }, 60000);
 
-/* Без интернета кабинет тоже должен открываться: у мастера на дому
-   связь может пропасть в любой момент, а расписание нужно сейчас.
-   С файла на диске (file://) браузер это не разрешает — нужен https. */
-if('serviceWorker' in navigator && location.protocol === 'https:'){
+/* Без интернета кабинет тоже должен открываться: у мастера на дому связь
+   пропадает в самый неподходящий момент, а расписание нужно сейчас.
+   Браузер разрешает это только на защищённом адресе — с файла на диске нет. */
+if('serviceWorker' in navigator &&
+   (location.protocol === 'https:' || location.hostname === 'localhost')){
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('./sw.js').catch(function(){});
   });

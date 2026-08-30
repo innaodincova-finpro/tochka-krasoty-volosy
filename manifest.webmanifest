@@ -1,14 +1,15 @@
 {
   "name": "Точка красоты. Волосы",
-  "short_name": "Точка. Волосы",
-  "description": "Кабинет парикмахера-колориста",
-  "start_url": "./",
+  "short_name": "Точка красоты",
+  "description": "Кабинет мастера: записи, клиенты, формулы окрашивания, материалы и отчёты. Всё хранится на этом телефоне.",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F4F7FA",
   "theme_color": "#4E7A9E",
-  "lang": "ru",
   "icons": [
     {
       "src": "./icon-192.png",
@@ -27,6 +28,16 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Сегодня",
+      "url": "./index.html"
+    },
+    {
+      "name": "Инструкция",
+      "url": "./instrukciya.html"
     }
   ]
 }
