@@ -1587,6 +1587,33 @@ function watchDictation(area){
   });
 }
 
+/* Пауза не всегда конец мысли: человек может запнуться посреди фразы —
+   «покрасить… в тёмный цвет». Если кусок начинается с предлога или союза,
+   это продолжение предыдущего, а не новое предложение: приклеиваем назад. */
+var GLUE_BACK = {
+  'в':1,'во':1,'на':1,'с':1,'со':1,'к':1,'ко':1,'по':1,'из':1,'изо':1,'за':1,
+  'под':1,'над':1,'о':1,'об':1,'обо':1,'от':1,'ото':1,'до':1,'при':1,'для':1,
+  'про':1,'у':1,'без':1,'через':1,'между':1,'перед':1,
+  'и':1,'а':1,'но':1,'да':1,'или':1,'либо':1,'же':1,'ли':1,'бы':1,'то':1,
+  'что':1,'чтобы':1,'чтоб':1,'как':1,'если':1,'когда':1,'потому':1,'поэтому':1,
+  'который':1,'которая':1,'которое':1,'которые':1,'которую':1,'которого':1
+};
+
+/* Собирает куски речи в текст: сначала склеивает оборванные фразы,
+   потом каждый готовый кусок превращает в предложение. */
+function assemblePieces(parts, forText){
+  var merged = [];
+  parts.forEach(function(p){
+    var t = String(p).replace(/^\s+/, '');
+    if(!t) return;
+    var first = bareWord(t.split(/\s+/)[0] || '');
+    if(merged.length && GLUE_BACK[first]) merged[merged.length - 1] += ' ' + t;
+    else merged.push(t);
+  });
+  return merged.map(function(p){ return forText ? speechPiece(p) : p.trim(); })
+               .filter(Boolean).join('\n');
+}
+
 /* Делит текст по отмеченным паузам и приводит каждый кусок в порядок.
    Переводы строки, которые в тексте уже есть, — тоже границы: иначе
    повторное нажатие кнопки склеило бы разложенное обратно в один кусок. */
@@ -1601,8 +1628,7 @@ function punctuate(text, forText){
   var parts = [], from = 0;
   at.forEach(function(n){ parts.push(s.slice(from, n)); from = n; });
   parts.push(s.slice(from));
-  return parts.map(function(p){ return forText ? speechPiece(p) : p.trim(); })
-              .filter(Boolean).join('\n');
+  return assemblePieces(parts, forText);
 }
 
 function punctField(){
@@ -2016,7 +2042,7 @@ function apptCard(id){
    Работает в Chrome и Edge и только когда кабинет открыт по адресу https —
    с файла на диске браузер микрофон не отдаёт. В Safari и Firefox кнопки нет,
    там остаётся системная диктовка. */
-var REC = null, REC_ON = false, REC_BASE = '';
+var REC = null, REC_ON = false, REC_BASE = '', REC_RAW = [];
 
 function isIOS(){
   return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
@@ -2117,7 +2143,17 @@ var COMMA_BEFORE = {
 
 /* Двухсловные союзы: запятая идёт перед первым словом, а не между ними. */
 var COMMA_PAIRS = [['потому','что'],['так','как'],['для','того'],['то','есть'],
-                   ['несмотря','на'],['в','случае']];
+                   ['несмотря','на'],['в','случае'],['в','отличие'],['при','условии']];
+
+/* Сравнительный оборот: запятая перед «как» ставится после «так же»,
+   «такой же», «то же» — там она нужна по правилу. В остальных случаях
+   «как» трогать нельзя: «как обычно», «как в прошлый раз» пишутся без неё. */
+var BEFORE_KAK = ['так же','такой же','такая же','такое же','такие же','то же','тот же'];
+
+/* Слова, с которых начинается вопрос. Взяты только те, что вопросом почти
+   всегда и являются: «что», «как», «когда» сюда не входят — «Как обычно»
+   и «Что делали» вопросами не являются, а лишний знак хуже отсутствующего. */
+var ASK_START = {'почему':1,'зачем':1,'отчего':1,'разве':1,'неужели':1,'сколько':1};
 
 /* Вводные слова — выделяются с обеих сторон. */
 var PARENTHETIC = ['конечно','наверное','наверно','возможно','кажется','кстати',
@@ -2178,6 +2214,19 @@ function speechPiece(raw){
     if(pair){ comma(); put(toks[j]); put(toks[j + 1]); j++; continue; }
 
     if(PARENTHETIC.indexOf(w) >= 0){ comma(); put(toks[j]); put({ mark: ',' }); continue; }
+
+    /* «так же, как сегодня» — запятая нужна; «как обычно» — нет */
+    if(w === 'как'){
+      var prev1 = '', prev2 = '', seen = 0;
+      for(var q = out.length - 1; q >= 0 && seen < 2; q--){
+        if(out[q].w === undefined) break;
+        if(seen === 0) prev1 = bareWord(out[q].w); else prev2 = bareWord(out[q].w);
+        seen++;
+      }
+      if(BEFORE_KAK.indexOf(prev2 + ' ' + prev1) >= 0) comma();
+      put(toks[j]); continue;
+    }
+
     if(COMMA_BEFORE[w]) comma();
     put(toks[j]);
   }
@@ -2193,7 +2242,12 @@ function speechPiece(raw){
        .replace(/,\s*(?=[,.;:!?…])/g, '')          /* запятая перед другим знаком не нужна */
        .replace(/\s*\n\s*/g, '\n').trim();
   if(!s) return '';
-  if(!/[.!?…]$/.test(s)) s += '.';
+  /* вопрос узнаётся по первому слову или по частице «ли» в начале фразы */
+  if(!/[.!?…]$/.test(s)){
+    var head = s.toLowerCase().split(/\s+/).slice(0, 5).map(bareWord);
+    var ask = ASK_START[head[0]] || head.slice(1).indexOf('ли') >= 0;
+    s += ask ? '?' : '.';
+  }
   /* большая буква в начале куска и после каждого законченного предложения */
   return s.replace(/(^|[.!?…]\s+|\n)([а-яёa-z])/g, function(all, before, ch){
     return before + ch.toUpperCase();
@@ -2237,9 +2291,20 @@ function voiceToggle(){
   REC.lang = 'ru-RU';
   REC.continuous = true;
   REC.interimResults = true;
-  REC_BASE = area.value ? area.value.replace(/\s+$/, '') + '\n' : '';
+  /* Куски речи копятся сырыми, а поле каждый раз собирается заново из всех
+     сразу. Иначе оборванную фразу — «покрасить… в тёмный цвет» — уже не
+     склеить: предыдущее предложение к этому моменту было бы закрыто точкой. */
+  REC_BASE = area.value ? area.value.replace(/\s+$/, '') : '';
+  REC_RAW = [];
   REC_ON = true;
   micPaint();
+
+  function repaint(interim){
+    var body = assemblePieces(REC_RAW, forText);
+    var all = [REC_BASE, body, String(interim || '').trim()].filter(Boolean).join('\n');
+    area.value = all;
+    area.scrollTop = area.scrollHeight;
+  }
 
   /* Проверка вместо гадания: если за пять секунд запись так и не началась,
      значит здесь она недоступна — переходим на клавиатуру и больше кнопку
@@ -2255,13 +2320,10 @@ function voiceToggle(){
     var now = '';
     for(var i = e.resultIndex; i < e.results.length; i++){
       var t = e.results[i][0].transcript;
-      if(e.results[i].isFinal){
-        var piece = forText ? speechPiece(t) : String(t).trim();
-        if(piece) REC_BASE += piece + '\n';
-      } else now += t;
+      if(e.results[i].isFinal){ if(String(t).trim()) REC_RAW.push(String(t).trim()); }
+      else now += t;
     }
-    area.value = (REC_BASE + now.trim()).replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '');
-    area.scrollTop = area.scrollHeight;
+    repaint(now);
   };
 
   REC.onerror = function(e){
