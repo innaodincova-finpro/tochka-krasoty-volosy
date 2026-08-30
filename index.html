@@ -684,6 +684,7 @@ function load(){
   if(DB.settings.place == null) DB.settings.place = '';
   if(DB.settings.signature == null) DB.settings.signature = '';
   if(DB.settings.stockAskedOn === undefined) DB.settings.stockAskedOn = null;
+  if(DB.settings.backupSnoozed === undefined) DB.settings.backupSnoozed = null;
   if(!Array.isArray(DB.clean)) DB.clean = [];
   if(!Array.isArray(DB.notes)) DB.notes = [];
   /* карточка клиента из более ранней сборки: один ритм разворачиваем в два.
@@ -947,6 +948,32 @@ function dayRibbon(st, nextId, emptyText){
   return h + '</div>';
 }
 
+/* Копию просим раз в неделю, и только когда есть что терять. «Позже»
+   убирает напоминание на три дня: каждый день просить — значит приучить
+   закрывать не читая. */
+function backupDue(){
+  if(DEMO) return false;
+  if(!DB.clients.length && !DB.appts.length) return false;
+  var lb = DB.settings.lastBackup;
+  if(lb && daysBetween(lb, today()) < 7) return false;
+  var sn = DB.settings.backupSnoozed;
+  if(sn && daysBetween(sn, today()) < 3) return false;
+  return true;
+}
+function backupBar(){
+  var lb = DB.settings.lastBackup;
+  return '<div class="addbar">' +
+    '<div class="ab-ic" aria-hidden="true"><span>КОПИЯ</span><span>РАЗ В</span><span>НЕДЕЛЮ</span></div>' +
+    '<div><div class="ab-t">' + (lb ? 'Копия сделана ' + shortDate(lb) : 'Копию ещё не делали') + '</div>' +
+    '<div class="muted">Записи и формулы лежат только в этом телефоне. Файл копии уйдёт ' +
+      'в загрузки — положите его в облачную папку.</div>' +
+    '<div class="btns two" style="margin-top:10px">' +
+      '<button class="btn primary" data-act="doBackup">Сохранить копию</button>' +
+      '<button class="btn" data-act="snoozeBackup">Позже</button>' +
+    '</div></div>' +
+  '</div>';
+}
+
 /* ================= экран «Сегодня» ================= */
 function renderToday(){
   var d = today(), st = dayStats(d), now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
@@ -968,6 +995,7 @@ function renderToday(){
            '<button class="ab-x" data-act="hideInstall" aria-label="Скрыть">✕</button>' +
          '</div>';
   }
+  if(backupDue()) h += backupBar();
 
   var running = st.list.filter(function(a){ return a.status === 'running'; })[0];
   var doneUnpaid = st.list.filter(function(a){ return a.status === 'done'; })[0];
@@ -1393,11 +1421,15 @@ function renderStock(){
 /* ================= экран «Ещё» ================= */
 function renderMore(){
   var h = '<div class="list">';
+  var lbm = DB.settings.lastBackup;
+  var staleM = !DEMO && (!lbm || daysBetween(lbm, today()) >= 7);
   [['Заметки голосом','notes'], ['Процедуры и цены','services'], ['Деньги и отчёты','money'],
    ['Качество работы','quality'], ['Иконка на телефоне','install'],
    ['Резервная копия','backup'], ['Настройки','settings']].forEach(function(p){
+    var mark = p[1] !== 'backup' ? '›'
+             : (staleM ? (lbm ? 'пора обновить' : 'ещё не делали') : 'от ' + shortDate(lbm));
     h += '<button class="item plain" data-act="page" data-id="' + p[1] + '">' +
-         '<div class="i-who">' + p[0] + '</div><div class="i-sum">›</div></button>';
+         '<div class="i-who">' + p[0] + '</div><div class="i-sum">' + mark + '</div></button>';
   });
   h += '</div>';
   $('topTitle').textContent = 'Ещё';
@@ -2607,9 +2639,15 @@ function doBackup(){
   a.href = url; a.download = 'tochka-krasoty-volosy-' + today() + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-  snapshot(); DB.settings.lastBackup = today(); save();
+  /* на первом запуске это учебное нажатие: сохранить базу нельзя, иначе
+     кабинет счтёт выбор сделанным и больше не спросит */
+  if(NEED_START){
+    toast('Файл копии в загрузках телефона — теперь вы знаете дорогу', true);
+    return;
+  }
+  snapshot(); DB.settings.lastBackup = today(); DB.settings.backupSnoozed = null; save();
   toast('Копия сохранена в загрузки телефона');
-  closeSheet();
+  closeSheet(); render();
 }
 /* Файл разбирается и проверяется полностью до того, как база будет заменена.
    Мастер видит, что именно лежит в файле, и подтверждает замену вручную. */
@@ -2886,6 +2924,10 @@ function act(name, id){
       break;
 
     case 'doBackup': doBackup(); break;
+    case 'snoozeBackup':
+      DB.settings.backupSnoozed = today(); save(true); render();
+      toast('Напомню через три дня. Сохранить копию можно в «Ещё»');
+      break;
     case 'doRestore': doRestore(); break;
     case 'restoreApply': restoreApply(); break;
     case 'restoreCancel': restoreCancel(); break;
@@ -3099,6 +3141,21 @@ function setTab(t){ TAB = t; VIEW = {}; render(); window.scrollTo(0, 0); }
    или посмотреть на готовом примере. До ответа ничего не сохраняется. */
 function renderStart(){
   return '<div class="card" style="margin-top:8px">' +
+    '<div class="badge">ГДЕ ЛЕЖАТ ЗАПИСИ</div>' +
+    '<div class="h-who" style="margin-top:8px">Только на этом телефоне</div>' +
+    '<div class="h-what">Клиенты, записи и формулы хранятся в памяти браузера этого телефона. ' +
+      'Сервера нет: никто их не видит и никуда не отправляет. И никто их не восстановит, ' +
+      'если очистить данные браузера или сменить телефон.</div>' +
+    '<div class="h-what" style="margin-top:8px"><b>Раз в неделю сохраняйте копию.</b> Копия — один файл: ' +
+      'кладётся в загрузки телефона, переносится в облачную папку и загружается обратно ' +
+      'на любом телефоне. Кабинет напомнит сам — но только напомнит.</div>' +
+    '<div class="btns" style="margin-top:14px">' +
+      '<button class="btn" data-act="doBackup">Попробовать сохранить копию сейчас</button>' +
+    '</div>' +
+    '<div class="hintline">Нажмите один раз, чтобы увидеть, куда падает файл. Сейчас он почти пустой — ' +
+      'важно заранее знать дорогу, а не искать её в день, когда телефон потерялся.</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px">' +
     '<div class="badge">ПЕРВЫЙ ЗАПУСК</div>' +
     '<div class="h-who" style="margin-top:8px">Кабинет мастера</div>' +
     '<div class="h-what">Записи, клиенты, формулы окрашивания, материалы и отчёты. ' +
@@ -3192,6 +3249,15 @@ document.addEventListener('keydown', function(e){
 load();
 render();
 setInterval(function(){ if(TAB === 'today') render(); }, 60000);
+
+/* Без интернета кабинет тоже должен открываться: у мастера на дому
+   связь может пропасть в любой момент, а расписание нужно сейчас.
+   С файла на диске (file://) браузер это не разрешает — нужен https. */
+if('serviceWorker' in navigator && location.protocol === 'https:'){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
 </script>
 </body>
 </html>
