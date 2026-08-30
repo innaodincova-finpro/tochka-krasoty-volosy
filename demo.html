@@ -2227,9 +2227,14 @@ var PHONE_NUM = {
 /* «плюс семь девятьсот двенадцать триста сорок пять» → «+7 912 345».
    Номер, набранный пальцем, не трогается: слов в нём нет, а ломать
    расставленные вручную скобки и дефисы незачем. */
+/* «+7», оставленное подсказкой и не дополненное, номером не считается */
+function phoneEmpty(s){
+  return !/[0-9]/.test(String(s).replace(/^\s*\+?\s*7\s*/, ''));
+}
+
 function tidyPhone(text){
   var s = String(text || '').trim();
-  if(!/[а-яё]/i.test(s)) return s;
+  if(!/[а-яё]/i.test(s)) return phoneEmpty(s) ? '' : s;
 
   var words = s.toLowerCase().split(/[^0-9a-zа-яё+]+/).filter(Boolean);
   /* каждый кусок помечается: сложился он из одного слова-цифры или нет */
@@ -2263,8 +2268,18 @@ function tidyPhone(text){
     else glued.push({ t:x.t, one:x.one });
   });
 
-  return glued.map(function(x){ return x.t; }).join(' ')
-              .replace(/\+\s+/g, '+').replace(/\s+/g, ' ').trim();
+  var done = glued.map(function(x){ return x.t; }).join(' ')
+                  .replace(/\+\s+/g, '+').replace(/\s+/g, ' ').trim();
+  return phoneEmpty(done) ? '' : done;
+}
+
+/* Цифровая клавиатура нужна не всем и не всегда: на ней у iPhone нет
+   микрофона. Поэтому там, где кабинет не может слушать сам, поле по
+   умолчанию открывает обычную клавиатуру — на ней микрофон есть, — а
+   цифровую можно позвать одной кнопкой. */
+function phoneNumeric(){
+  var f = $('cl_phone');
+  return !!f && f.getAttribute('inputmode') === 'tel';
 }
 
 function phonePaint(){
@@ -2274,15 +2289,39 @@ function phonePaint(){
     b.innerHTML = '<span class="mic-dot"></span>Остановить';
     b.classList.add('rec');
     hint.textContent = 'Слушаю. Называйте цифры подряд, можно с паузами.';
-  } else if(f.getAttribute('inputmode') === 'text'){
-    b.innerHTML = 'Вернуть цифры';
-    b.classList.remove('rec');
-    hint.textContent = 'Нажмите микрофон на клавиатуре и назовите номер.';
-  } else {
-    b.innerHTML = micIcon() + 'Продиктовать';
-    b.classList.remove('rec');
-    hint.textContent = 'Клавиатура с цифрами';
+    return;
   }
+  b.classList.remove('rec');
+  if(voiceReady()){
+    b.innerHTML = micIcon() + 'Продиктовать';
+    hint.textContent = 'Или наберите номер на клавиатуре.';
+    return;
+  }
+  if(phoneNumeric()){
+    b.innerHTML = 'Клавиатура с буквами';
+    hint.textContent = 'Клавиатура с цифрами. Микрофона на ней нет.';
+  } else {
+    b.innerHTML = 'Клавиатура с цифрами';
+    hint.textContent = 'Микрофон — на клавиатуре, слева от пробела.';
+  }
+}
+
+/* Клавиатуру у уже открытого поля iPhone не перестраивает, сколько ни меняй
+   ему inputmode: он показывает ту, что построил при первом касании. Поэтому
+   поле подменяется на свою же копию — для телефона это новое поле, и
+   клавиатуру он собирает заново. */
+function phoneKeys(){
+  var old = $('cl_phone'); if(!old) return;
+  var toNumeric = !phoneNumeric();
+  var fresh = old.cloneNode(false);
+  fresh.value = toNumeric ? tidyPhone(old.value) : old.value;
+  if(toNumeric) fresh.setAttribute('inputmode', 'tel');
+  else fresh.removeAttribute('inputmode');
+  old.parentNode.replaceChild(fresh, old);
+  phonePaint();
+  /* фокус — тут же, в том же касании: по таймеру iPhone клавиатуру не поднимет */
+  fresh.focus();
+  try{ fresh.setSelectionRange(fresh.value.length, fresh.value.length); }catch(e){}
 }
 
 function phoneStop(){
@@ -2295,27 +2334,9 @@ function phoneStop(){
 
 function phoneVoice(){
   var f = $('cl_phone'); if(!f) return;
+  /* там, где кабинет слушать не может, кнопка меняет клавиатуру */
+  if(!voiceReady()){ phoneKeys(); return; }
 
-  /* путь второй: микрофон даёт клавиатура телефона */
-  if(!voiceReady()){
-    var toLetters = f.getAttribute('inputmode') !== 'text';
-    if(toLetters){
-      f.setAttribute('inputmode', 'text');
-    } else {
-      f.setAttribute('inputmode', 'tel');
-      f.value = tidyPhone(f.value);
-    }
-    phonePaint();
-    /* фокус возвращается тут же, не через таймер: iPhone открывает клавиатуру
-       только внутри того же касания, из которого пришёл вызов */
-    if(document.activeElement === f) f.blur();
-    f.focus();
-    try{ f.setSelectionRange(f.value.length, f.value.length); }catch(e){}
-    if(toLetters) toast('Нажмите микрофон на клавиатуре и назовите номер');
-    return;
-  }
-
-  /* путь первый: кабинет слушает сам */
   if(PH_ON){ phoneStop(); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   PH_REC = new SR();
@@ -2852,15 +2873,17 @@ function formClient(id){
   var c = id ? cli(id) : { name:'', phone:'', cycleRoots:null, cycleCut:null, note:'', link:'whatsapp', allergy:null };
   var h =
     '<div class="field"><label class="lab">Имя</label><input class="inp" id="cl_name" value="' + esc(c.name) + '"></div>' +
-    /* На клавиатуре с цифрами у iPhone нет микрофона — продиктовать номер
-       оттуда невозможно. Кнопка «Продиктовать» либо пишет номер сама, либо
-       переключает поле на буквенную клавиатуру, где микрофон есть. */
+    /* Микрофона на цифровой клавиатуре у iPhone нет. Поэтому там, где
+       кабинет не может слушать сам, поле открывает обычную клавиатуру —
+       на ней микрофон есть, — и в поле уже стоит «+7 », чтобы набирать
+       или диктовать оставалось только сами цифры. Цифровая клавиатура
+       вызывается кнопкой рядом. */
     '<div class="field"><label class="lab">Телефон</label>' +
-      '<input class="inp" id="cl_phone" inputmode="tel" value="' + esc(c.phone) + '">' +
+      '<input class="inp" id="cl_phone"' + (voiceReady() ? ' inputmode="tel"' : '') +
+        ' value="' + esc(c.phone || (id ? '' : '+7 ')) + '">' +
       '<div class="fld-row">' +
-        '<span class="hintline" id="cl_phone_hint" style="margin:0">Клавиатура с цифрами</span>' +
-        '<button class="linkbtn" id="cl_phone_btn" data-act="phoneVoice">' +
-          micIcon() + 'Продиктовать</button>' +
+        '<span class="hintline" id="cl_phone_hint" style="margin:0"></span>' +
+        '<button class="linkbtn" id="cl_phone_btn" data-act="phoneVoice"></button>' +
       '</div></div>' +
     /* Сроки при заведении клиента не спрашиваются: мастер их ещё не знает,
        а кабинет посчитает сам, как только клиент придёт во второй раз.
@@ -2893,6 +2916,8 @@ function formClient(id){
   openSheet(id ? 'Изменить клиента' : 'Новый клиент', h,
     '<button class="btn primary" data-act="saveClient" data-id="' + (id || '') + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+  PH_ON = false;
+  phonePaint();
 }
 
 function formAllergy(id){
