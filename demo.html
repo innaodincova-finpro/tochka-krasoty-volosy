@@ -1571,10 +1571,14 @@ var DICT_GAP = 900;                     /* столько миллисекунд
 
 function dictReset(v){ DICT_MARKS = []; DICT_LAST = 0; DICT_PREV = String(v || ''); }
 
+var DICT_TIMER = null;
+var DICT_QUIET = 3000;                  /* столько тишины = диктовка закончилась */
+
 function watchDictation(area){
   if(area.dataset.watched) return;
   area.dataset.watched = '1';
   dictReset(area.value);
+
   area.addEventListener('input', function(){
     var now = Date.now(), val = area.value;
     var grew = val.length > DICT_PREV.length && val.indexOf(DICT_PREV) === 0;
@@ -1584,7 +1588,32 @@ function watchDictation(area){
     }
     DICT_LAST = now;
     DICT_PREV = val;
+
+    /* Знаки расставляются сами, кнопку нажимать не нужно. Ждём три секунды
+       тишины: пока телефон досказывает фразу, он переписывает конец текста
+       по-своему, и вмешиваться туда нельзя — правку затрёт. */
+    if(DICT_TIMER) clearTimeout(DICT_TIMER);
+    DICT_TIMER = setTimeout(function(){
+      if(area.value === DICT_PREV) punctSilent(area);
+    }, DICT_QUIET);
   });
+
+  /* ушли из поля — приводим текст в порядок сразу, ждать нечего */
+  area.addEventListener('blur', function(){
+    if(DICT_TIMER){ clearTimeout(DICT_TIMER); DICT_TIMER = null; }
+    punctSilent(area);
+  });
+}
+
+/* Та же расстановка, но молча: без сообщений, чтобы не мельтешить. */
+function punctSilent(area){
+  if(!area || !area.value.trim()) return;
+  var forText = area.getAttribute('data-mode') !== 'formula';
+  var now = punctuate(area.value, forText);
+  if(!now || now === area.value) return;
+  area.value = now;
+  dictReset(now);
+  try{ area.setSelectionRange(now.length, now.length); }catch(e){}
 }
 
 /* Пауза не всегда конец мысли: человек может запнуться посреди фразы —
@@ -2067,8 +2096,8 @@ function voiceReady(){
 }
 
 function voiceWhyNot(){
-  return 'Диктуйте микрофоном на клавиатуре телефона. Знаки препинания кабинет ' +
-         'расставит сам — кнопкой ниже или при сохранении.';
+  return 'Диктуйте микрофоном на клавиатуре телефона. Знаки кабинет расставит сам, ' +
+         'как только вы договорите. Кнопка — если не хочется ждать.';
 }
 
 /* Запись не пошла: больше кнопку не предлагаем, показываем путь через
@@ -2150,10 +2179,51 @@ var COMMA_PAIRS = [['потому','что'],['так','как'],['для','то
    «как» трогать нельзя: «как обычно», «как в прошлый раз» пишутся без неё. */
 var BEFORE_KAK = ['так же','такой же','такая же','такое же','такие же','то же','тот же'];
 
-/* Слова, с которых начинается вопрос. Взяты только те, что вопросом почти
-   всегда и являются: «что», «как», «когда» сюда не входят — «Как обычно»
-   и «Что делали» вопросами не являются, а лишний знак хуже отсутствующего. */
-var ASK_START = {'почему':1,'зачем':1,'отчего':1,'разве':1,'неужели':1,'сколько':1};
+/* ---- как узнаётся вопрос ----
+
+   Речь на слух отличает вопрос интонацией, в тексте её нет. Поэтому вопрос
+   узнаётся по трём приметам, и каждая проверена на живых фразах мастера.
+
+   1. Слова, после которых идёт только вопрос: «почему», «зачем», «сколько»,
+      «разве». Тут гадать не о чем.
+   2. Слова, которые бывают и в вопросе, и в обычной фразе: «как», «что»,
+      «где», «когда», «кто», «какой». Вопрос из них получается, только если
+      дальше в фразе есть глагол: «Как мы её красили» — вопрос, «Как обычно
+      на корни» — нет.
+   3. Обращение к человеку: глагол на «-ешь», «-ишь» («не помнишь»,
+      «сделаешь»). В заметке себе так не пишут — только спрашивают.
+
+   Плюс частица «ли»: «Придёт ли она в пятницу». */
+var ASK_STRONG = {'почему':1,'зачем':1,'отчего':1,'разве':1,'неужели':1,
+                  'сколько':1,'откуда':1,'куда':1,'чей':1,'чья':1,'чьи':1};
+
+var ASK_SOFT = {'как':1,'что':1,'чего':1,'чем':1,'где':1,'когда':1,
+                'кто':1,'кого':1,'кому':1,'кем':1,
+                'какой':1,'какая':1,'какое':1,'какие':1,'каком':1,'какую':1,'каких':1};
+
+/* Глагол без словаря. Проверка нестрогая — под неё попадают и «цвет», и
+   «клиент», — но применяется она только там, где фраза уже начинается с
+   вопросительного слова. В остальных случаях она не спрашивается вовсе. */
+function looksVerb(w){
+  if(/(ешь|ишь|ёшь|ешься|ишься)$/.test(w)) return true;
+  if(/(ть|ться|тся)$/.test(w) && w.length >= 5) return true;
+  if(/(л|ла|ло|ли|лся|лись)$/.test(w) && w.length >= 3) return true;
+  if(/(ет|ёт|ит|ут|ют|ат|ят)$/.test(w) && w.length >= 4) return true;
+  return false;
+}
+
+function looksQuestion(words){
+  if(!words.length) return false;
+  if(ASK_STRONG[words[0]]) return true;
+  if(words.slice(1).indexOf('ли') >= 0) return true;
+  for(var i = 0; i < words.length; i++){
+    if(/(ешь|ишь|ёшь|ешься|ишься)$/.test(words[i])) return true;
+  }
+  if(ASK_SOFT[words[0]] || (words[0] === 'а' && ASK_SOFT[words[1] || ''])){
+    for(var j = 0; j < words.length; j++) if(looksVerb(words[j])) return true;
+  }
+  return false;
+}
 
 /* Вводные слова — выделяются с обеих сторон. */
 var PARENTHETIC = ['конечно','наверное','наверно','возможно','кажется','кстати',
@@ -2227,6 +2297,16 @@ function speechPiece(raw){
       put(toks[j]); continue;
     }
 
+    /* Хвостик-обращение: «…приходила, не помнишь?», «…брали, не знаешь?».
+       Запятая нужна перед всем оборотом, а не внутри него. */
+    if(w === 'не' && /(ешь|ишь|ёшь)$/.test(next)){
+      comma(); put(toks[j]); put(toks[j + 1]); j++; continue;
+    }
+    /* «а что если», «что если» — оборот целиком, запятые внутри не ставятся */
+    var prevW = '';
+    for(var z = out.length - 1; z >= 0; z--){ if(out[z].w !== undefined){ prevW = bareWord(out[z].w); } break; }
+    if((w === 'что' && next === 'если') || (w === 'если' && prevW === 'что')){ put(toks[j]); continue; }
+
     if(COMMA_BEFORE[w]) comma();
     put(toks[j]);
   }
@@ -2242,11 +2322,9 @@ function speechPiece(raw){
        .replace(/,\s*(?=[,.;:!?…])/g, '')          /* запятая перед другим знаком не нужна */
        .replace(/\s*\n\s*/g, '\n').trim();
   if(!s) return '';
-  /* вопрос узнаётся по первому слову или по частице «ли» в начале фразы */
   if(!/[.!?…]$/.test(s)){
-    var head = s.toLowerCase().split(/\s+/).slice(0, 5).map(bareWord);
-    var ask = ASK_START[head[0]] || head.slice(1).indexOf('ли') >= 0;
-    s += ask ? '?' : '.';
+    var ws = s.toLowerCase().split(/\s+/).map(bareWord).filter(Boolean);
+    s += looksQuestion(ws) ? '?' : '.';
   }
   /* большая буква в начале куска и после каждого законченного предложения */
   return s.replace(/(^|[.!?…]\s+|\n)([а-яёa-z])/g, function(all, before, ch){
