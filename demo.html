@@ -227,6 +227,12 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .two-col>*{min-width:0}
 .hintline{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
+/* строка занятости под временем: зелёная — свободно, охра — накладка */
+.busy{font-size:12.5px;line-height:1.4;border-radius:9px;padding:9px 11px;margin:-4px 0 12px;
+      border:1px solid transparent}
+.busy:empty{display:none}
+.busy.free{background:rgba(75,127,98,.10);border-color:rgba(75,127,98,.32);color:var(--ok)}
+.busy.hit{background:rgba(176,131,71,.12);border-color:var(--warn);color:var(--warn);font-weight:600}
 
 /* ---------- нижняя панель ---------- */
 .tabbar{flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
@@ -1699,6 +1705,91 @@ function watchDictation(area){
   });
 }
 
+/* ================= числа словами в обычном тексте =================
+
+   Мастер говорит «краска эстель семь один», «держать сорок минут» — и это
+   должно лечь цифрами: «Estel 7.1», «держать 40 минут». Слово превращается
+   в цифру не всегда, а только когда рядом есть на что опереться: другое
+   числительное, единица измерения или соседняя цифра. Иначе «пришла одна»
+   стало бы «пришла 1».
+*/
+var TEXT_NUM = {
+  'ноль':0,'нуль':0,'один':1,'одна':1,'одно':1,'одну':1,'два':2,'две':2,'три':3,
+  'четыре':4,'пять':5,'шесть':6,'семь':7,'восемь':8,'девять':9,'десять':10,
+  'одиннадцать':11,'двенадцать':12,'тринадцать':13,'четырнадцать':14,'пятнадцать':15,
+  'шестнадцать':16,'семнадцать':17,'восемнадцать':18,'девятнадцать':19,
+  'двадцать':20,'тридцать':30,'сорок':40,'пятьдесят':50,'шестьдесят':60,
+  'семьдесят':70,'восемьдесят':80,'девяносто':90,
+  'сто':100,'двести':200,'триста':300,'четыреста':400,'пятьсот':500,
+  'шестьсот':600,'семьсот':700,'восемьсот':800,'девятьсот':900
+};
+
+/* Слова, после которых число — точно число: единицы измерения и счётные слова. */
+var NUM_UNITS = ('минут минуты минута часов часа час грамм грамма граммов процент процента ' +
+  'процентов дней дня день раз раза недель недели неделя месяц месяца месяцев рублей рубля ' +
+  'рубль туб тубы туба флакон флакона флаконов банка банки банок рулон рулона рулонов ' +
+  'упаковка упаковки упаковок штук штуки штука тон тона тонов минуток').split(' ');
+
+/* «одна» без опоры остаётся словом: это чаще местоимение, чем число */
+var SOFT_ONE = { 'один':1,'одна':1,'одно':1,'одну':1 };
+
+function numsInText(text){
+  var raw = String(text || '').split(/(\s+)/);          /* пробелы сохраняются */
+  var words = [], idx = [];
+  raw.forEach(function(t, i){ if(t.trim()){ words.push(t); idx.push(i); } });
+
+  var val = words.map(function(w){
+    var b = w.toLowerCase().replace(/[^а-яёa-z0-9]/g, '');
+    return TEXT_NUM.hasOwnProperty(b) ? { n:TEXT_NUM[b], w:b, tail:w.replace(/^[^а-яёa-z0-9]*[а-яёa-z0-9]+/i, '') }
+                                      : (/^[0-9]+$/.test(b) ? { n:+b, w:b, digit:true, tail:'' } : null);
+  });
+
+  function unitAt(i){
+    var w = (words[i] || '').toLowerCase().replace(/[^а-яё]/g, '');
+    return NUM_UNITS.indexOf(w) >= 0;
+  }
+  /* число оставляем словом, если оно одинокое «один» без опоры рядом */
+  function keep(i){
+    if(!val[i] || val[i].digit) return false;
+    if(!SOFT_ONE.hasOwnProperty(val[i].w)) return true;
+    return !!(val[i-1] && val[i-1] !== null) || !!(val[i+1] && val[i+1] !== null) || unitAt(i+1);
+  }
+
+  var out = words.slice();
+  for(var i = 0; i < words.length; i++){
+    if(!val[i] || !keep(i)) continue;
+    /* составное число: «сорок пять» → 45, «девятьсот двенадцать» → 912 */
+    var sum = val[i].n, last = val[i].n, j = i;
+    while(val[j+1] && !val[j+1].digit){
+      var canGo = (last >= 100 && last % 100 === 0) || (last >= 20 && last % 10 === 0);
+      if(!canGo || val[j+1].n >= last) break;
+      sum += val[j+1].n; last = val[j+1].n; j++;
+    }
+    out[i] = String(sum) + (val[j].tail || '');
+    for(var k = i + 1; k <= j; k++) out[k] = null;
+    i = j;
+  }
+
+  var res = [], p = 0;
+  raw.forEach(function(t, i){
+    if(idx[p] === i){ if(out[p] !== null) res.push(out[p]); p++; }
+    else res.push(t);
+  });
+  return res.join('').replace(/\s{2,}/g, ' ').trim();
+}
+
+/* Название материала: две цифры подряд — это тон краски («7 1» → «7.1»),
+   бренд пишется как на тубе («эстель» → «Estel»), первая буква заглавная. */
+function tidyName(s){
+  var out = String(s).replace(/(\d)\s+(\d{1,2})(?![\d.])/g, '$1.$2');
+  out = out.split(/(\s+)/).map(function(w){
+    var b = w.toLowerCase().replace(/[^а-яёa-z]/g, '');
+    return (b && BRAND_OF[b]) ? w.replace(/[а-яёa-z]+/i, BRAND_OF[b]) : w;
+  }).join('');
+  out = out.trim();
+  return out ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+}
+
 /* Приведение поля в порядок — молча, без сообщений, чтобы не мельтешить. */
 function punctSilent(area){
   if(!area || !area.value.trim()) return;
@@ -1709,8 +1800,15 @@ function punctSilent(area){
     now = tidyPhone(area.value);
     /* «+7», которое стоит подсказкой, стирать нельзя: мастер только начал */
     if(!now) return;
+  } else if(mode === 'name'){
+    /* название материала: числа цифрами, тон через точку, знаков не ставим */
+    now = tidyName(numsInText(area.value));
+  } else if(mode === 'formula'){
+    /* формулу в цифры не переводим: её разбирает свой разбор, и «семь точка
+       один» он понимает лучше, чем «7 точка 1» */
+    now = punctuate(area.value, false);
   } else {
-    now = punctuate(area.value, mode !== 'formula');
+    now = punctuate(numsInText(area.value), true);
   }
 
   if(!now || now === area.value) return;
@@ -3010,11 +3108,12 @@ function formAppt(preClient){
           'value="' + (first.dur % 60) + '" style="padding-right:52px">' +
           '<span class="unit">минут</span></div>' +
       '</div></div>' +
+    '<div class="busy" id="f_busy"></div>' +
     '<div class="field"><label class="lab">Стоимость, ₽</label>' +
       '<input class="inp" id="f_price" inputmode="numeric" value="' + first.price + '"></div>' +
     '<div class="field"><label class="lab">Заметка</label><input class="inp" id="f_note" data-mode="text" placeholder="необязательно"></div>' +
     '<div class="hintline">Время и стоимость подставились из прайса — поправьте под этот приём, ' +
-    'если он длиннее или дороже обычного. Если запись наложится на предыдущую, кабинет предупредит.</div>';
+    'если он длиннее или дороже обычного.</div>';
   openSheet('Новая запись', h,
     '<button class="btn primary" data-act="saveAppt">Сохранить запись</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
@@ -3027,12 +3126,29 @@ function formAppt(preClient){
   });
   var sel = $('f_service');
   if(sel) sel.addEventListener('change', function(){
-    if(touched) return;
-    var s = svc(sel.value); if(!s) return;
-    $('f_h').value = Math.floor(s.dur / 60);
-    $('f_m').value = s.dur % 60;
-    $('f_price').value = s.price;
+    if(!touched){
+      var s = svc(sel.value);
+      if(s){ $('f_h').value = Math.floor(s.dur / 60);
+             $('f_m').value = s.dur % 60;
+             $('f_price').value = s.price; }
+    }
+    paintBusy();
   });
+
+  /* Занятость показывается сразу, пока мастер выбирает время: приём на
+     четыре часа перекрывает половину дня, и узнавать об этом после
+     сохранения поздно. */
+  function paintBusy(){
+    var box = $('f_busy'); if(!box) return;
+    var d = (parseInt(val('f_h'), 10) || 0) * 60 + (parseInt(val('f_m'), 10) || 0);
+    var r = busyLine({ id:'', date: val('f_date'), time: val('f_time'), dur: d });
+    box.className = 'busy' + (r.free ? ' free' : ' hit');
+    box.textContent = r.text;
+  }
+  ['f_date', 'f_time', 'f_h', 'f_m'].forEach(function(fid){
+    var el = $(fid); if(el){ el.addEventListener('input', paintBusy); el.addEventListener('change', paintBusy); }
+  });
+  paintBusy();
 }
 
 /* Правится вся запись целиком: и время приёма, и сколько он идёт, и сколько
@@ -3054,6 +3170,7 @@ function formMove(id){
           'value="' + (a.dur % 60) + '" style="padding-right:52px">' +
           '<span class="unit">минут</span></div>' +
       '</div></div>' +
+    '<div class="busy" id="mv_busy"></div>' +
     '<div class="field"><label class="lab">Стоимость, ₽</label>' +
       '<input class="inp" id="mv_price" inputmode="numeric" value="' + (a.price || 0) + '"></div>' +
     '<div class="hintline">Сейчас записано: ' + shortDate(a.date) + ', ' + a.time + ', ' +
@@ -3062,6 +3179,18 @@ function formMove(id){
   openSheet('Изменить запись', h,
     '<button class="btn primary" data-act="saveMove" data-id="' + a.id + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+
+  function paintBusyMv(){
+    var box = $('mv_busy'); if(!box) return;
+    var d = (parseInt(val('mv_h'), 10) || 0) * 60 + (parseInt(val('mv_m'), 10) || 0);
+    var r = busyLine({ id:a.id, date: val('mv_date'), time: val('mv_time'), dur: d });
+    box.className = 'busy' + (r.free ? ' free' : ' hit');
+    box.textContent = r.text;
+  }
+  ['mv_date', 'mv_time', 'mv_h', 'mv_m'].forEach(function(fid){
+    var el = $(fid); if(el){ el.addEventListener('input', paintBusyMv); el.addEventListener('change', paintBusyMv); }
+  });
+  paintBusyMv();
 }
 
 function formClient(id){
@@ -3111,7 +3240,7 @@ function formAllergy(id){
 function formStock(){
   var h =
     '<div class="field"><label class="lab">Название</label>' +
-      '<input class="inp" id="st_name" placeholder="Краска Estel 7.1"></div>' +
+      '<input class="inp" id="st_name" data-mode="name" placeholder="Краска Estel 7.1"></div>' +
     '<div class="two-col">' +
       '<div class="field"><label class="lab">Осталось</label><input class="inp" id="st_qty" inputmode="numeric" value="1"></div>' +
       '<div class="field"><label class="lab">Норма запаса</label><input class="inp" id="st_min" inputmode="numeric" value="1"></div>' +
@@ -3351,15 +3480,38 @@ function restoreCancel(){
 
 /* Приёмы длинные, наложить новую запись на предыдущую легко.
    Кабинет не запрещает — он предупреждает и показывает накладку в ленте дня. */
-function overlapWarn(a){
+/* Приёмы у колориста длинные, и наложение — самая частая ошибка при записи.
+   Кабинет ищет любой приём того же дня, который пересекается по времени. */
+function overlapHit(a){
   var hit = null, st = mins(a.time), en = st + a.dur;
   DB.appts.forEach(function(x){
     if(x.id === a.id || x.date !== a.date || x.status === 'cancel') return;
     var xs = mins(x.time), xe = xs + x.dur;
     if(st < xe && xs < en) hit = x;
   });
+  return hit;
+}
+
+function overlapWarn(a){
+  var hit = overlapHit(a);
   if(!hit) return '';
   return 'Внимание: запись наложилась на приём в ' + hit.time + ' (' + dur(hit.dur) + ')';
+}
+
+/* Та же проверка, но словами и заранее — показывается прямо в форме,
+   пока мастер выбирает время, а не после сохранения. */
+function busyLine(a){
+  if(!a.date || !a.time || !a.dur) return { free:true, text:'' };
+  var hit = overlapHit(a);
+  var st = mins(a.time), en = st + a.dur;
+  var range = a.time + ' — ' + hhmm(en);
+  if(!hit){
+    return { free:true, text: 'Время свободно: ' + range + '.' };
+  }
+  var who = hit.clientId ? cli(hit.clientId).name : 'приём';
+  return { free:false,
+    text: 'Занято: ' + who + ', ' + hit.time + ' — ' + hhmm(mins(hit.time) + hit.dur) +
+          '. Новый приём идёт ' + range + ' и накладывается.' };
 }
 
 /* ================= действия ================= */
