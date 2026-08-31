@@ -1796,18 +1796,57 @@ function noteParsed(text){
       'Формулы здесь нет — заметка сохранится как обычный текст.</div></div>';
 }
 
+var SRV_KIND = { color:'окрашивание', cut:'стрижка', care:'уход' };
+
+/* Список процедур заполнен заготовкой — обычными для колориста работами
+   со средними сроками и ценами. Это только чтобы кабинет заработал сразу,
+   а не встретил мастера пустым списком. Любую строку можно открыть и
+   поправить под себя, ненужную — удалить, свою — добавить. */
 function pageServices(){
-  var KIND = { color:'окрашивание', cut:'стрижка', care:'уход' };
-  var h = '<div class="list">';
+  var h = '<div class="note">Это заготовка: названия, сроки и цены проставлены ' +
+    'средние. Нажмите на строку, чтобы поправить под себя.</div>' +
+    '<button class="btn primary wide" data-act="addService">+ Новая процедура</button>' +
+    '<div class="list" style="margin-top:10px">';
+  if(!DB.services.length) h += '<div class="empty">Процедур пока нет</div>';
   DB.services.forEach(function(s){
-    h += '<div class="item plain"><div><div class="i-who">' + esc(s.name) + '</div>' +
-         '<div class="i-what">' + dur(s.dur) + ' · ' + (KIND[s.kind] || 'уход') + '</div></div>' +
-         '<div class="i-sum">' + rub(s.price) + '</div></div>';
+    h += '<button class="item plain" data-act="editService" data-id="' + s.id + '">' +
+         '<div><div class="i-who">' + esc(s.name) + '</div>' +
+         '<div class="i-what">' + dur(s.dur) + ' · ' + (SRV_KIND[s.kind] || 'уход') + '</div></div>' +
+         '<div class="i-sum">' + rub(s.price) + '</div></button>';
   });
   h += '</div>';
   h += '<div class="hintline">Род процедуры нужен для двух вещей: после окрашивания кабинет ' +
        'отсчитывает срок до отросших корней, после стрижки — срок до следующей стрижки.</div>';
   openSheet('Процедуры и цены', h, '<button class="btn" data-act="closeSheet">Закрыть</button>');
+}
+
+function formService(id){
+  var s = id ? DB.services.filter(function(x){ return x.id === id; })[0] : null;
+  if(id && !s) return;
+  var cur = s || { name:'', dur:60, price:0, kind:'cut' };
+  var opts = ['cut','color','care'].map(function(k){
+    return '<option value="' + k + '"' + (cur.kind === k ? ' selected' : '') + '>' +
+           SRV_KIND[k] + '</option>';
+  }).join('');
+
+  var h =
+    '<div class="field"><label class="lab">Название</label>' +
+      '<input class="inp" id="sv_name" value="' + esc(cur.name) + '" placeholder="Окрашивание корней"></div>' +
+    '<div class="two-col">' +
+      '<div class="field"><label class="lab">Длительность, минут</label>' +
+        '<input class="inp" id="sv_dur" inputmode="numeric" value="' + cur.dur + '"></div>' +
+      '<div class="field"><label class="lab">Цена, ₽</label>' +
+        '<input class="inp" id="sv_price" inputmode="numeric" value="' + cur.price + '"></div>' +
+    '</div>' +
+    '<div class="field"><label class="lab">Род работы</label>' +
+      '<select class="inp" id="sv_kind">' + opts + '</select></div>' +
+    '<div class="hintline">Длительность и цена подставятся в новую запись. ' +
+    'В уже сделанных записях останется то, что стояло на момент записи.</div>';
+
+  var foot = '<button class="btn primary" data-act="saveService" data-id="' + (id || '') + '">Сохранить</button>';
+  if(id) foot += '<button class="btn" data-act="delService" data-id="' + id + '">Удалить</button>';
+  foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
+  openSheet(id ? 'Процедура' : 'Новая процедура', h, foot);
 }
 
 function pageMoney(){
@@ -3576,6 +3615,34 @@ function act(name, id){
       save(); closeSheet(); render(); toast('Сохранено');
       break;
     }
+    case 'addService': formService(''); break;
+    case 'editService': formService(id); break;
+
+    case 'saveService': {
+      var svName = val('sv_name').trim();
+      if(!svName){ toast('Впишите название'); break; }
+      var svDur = parseInt(val('sv_dur'), 10) || 0;
+      if(svDur < 5){ toast('Длительность — не меньше пяти минут'); break; }
+      snapshot();
+      var svFields = { name:svName, dur:svDur,
+                       price:parseInt(val('sv_price'), 10) || 0, kind:val('sv_kind') };
+      var svOld = id ? DB.services.filter(function(x){ return x.id === id; })[0] : null;
+      if(svOld){ for(var svK in svFields) if(svFields.hasOwnProperty(svK)) svOld[svK] = svFields[svK]; }
+      else { svFields.id = uid(); DB.services.push(svFields); }
+      save(); closeSheet(); pageServices(); render(); toast('Сохранено');
+      break;
+    }
+
+    case 'delService': {
+      /* В сделанных записях длительность и цена свои, поэтому удаление
+         процедуры прошлое не портит. */
+      snapshot();
+      DB.services = DB.services.filter(function(x){ return x.id !== id; });
+      save(); closeSheet(); pageServices(); render();
+      toast('Процедура убрана, можно вернуть стрелкой наверху');
+      break;
+    }
+
     case 'saveStock': {
       var n2 = val('st_name').trim();
       if(!n2){ toast('Впишите название'); break; }
