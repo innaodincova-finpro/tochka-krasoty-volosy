@@ -10,26 +10,29 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Точка красоты">
 <meta name="application-name" content="Точка красоты. Волосы">
-<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" type="image/png" href="./icon-192.png">
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
 :root{
-  --ground:#F4F7FA; --card:#FFFFFF; --panel:#4E7A9E; --ink:#1F2E3C; --mut:#6B8093;
+  --ground:#F4F7FA; --card:#FFFFFF; --panel:#4E7A9E; --ink:#1F2E3C; --mut:#55697C;
   --line:#E1E8EF; --soft:#EDF2F6; --ok:#4B7F62; --stop:#2F6091; --warn:#B08347;
+  /* охра для ТЕКСТА предупреждений: сама --warn слишком светлая, чтобы её читать */
+  --warn-ink:#7A5520;
   --tint:#EBF2F8; --tintline:#CBDCEA;
   --on-stop:#FFFFFF; --on-ok:#FFFFFF;
   /* шапка: цвета текста и кнопок задаются отдельно, чтобы её можно было
      сделать как тёмной, так и светлой, не трогая остальной экран */
-  --p-ink:#FFFFFF; --p-mut:#C3D8E6; --p-sub:#DDEAF3; --p-dim:#A8C2D4;
-  --p-btn:#5D8AAE; --p-btn-ink:#EFF6FB; --p-line:transparent; --p-bad:#FFD3C9;
+  --p-ink:#FFFFFF; --p-mut:#C3D8E6; --p-sub:#DDEAF3; --p-dim:#CFE0EC;
+  --p-btn:#5D8AAE; --p-btn-ink:#EFF6FB; --p-line:transparent; --p-bad:#FFE3DC;
 }
 html[data-theme="dark"]{
   --ground:#101820; --card:#182029; --panel:#2C4A63; --ink:#E6EDF3; --mut:#8FA3B4;
   --line:#26313C; --soft:#1D2731; --ok:#6E9F82; --stop:#6FA3D2; --warn:#D2A468;
+  --warn-ink:#E8BE85;
   --tint:#1A2836; --tintline:#2E4560;
   --on-stop:#0D1A26; --on-ok:#0D1A26;
-  --p-ink:#EAF2F8; --p-mut:#A8C2D4; --p-sub:#CBDDEA; --p-dim:#8AA5BB;
+  --p-ink:#EAF2F8; --p-mut:#A8C2D4; --p-sub:#CBDDEA; --p-dim:#B6CBDC;
   --p-btn:#3A5C79; --p-btn-ink:#DCEAF4; --p-line:transparent; --p-bad:#F0A79B;
 }
 *{box-sizing:border-box}
@@ -68,12 +71,15 @@ a{color:var(--stop)}
 .tbtn{background:var(--p-btn);border:none;color:var(--p-btn-ink);border-radius:8px;
       min-width:38px;height:38px;display:flex;align-items:center;justify-content:center}
 .tbtn:disabled{opacity:.35}
-.saved{font-size:11px;color:var(--p-dim);margin-top:8px}
+.saved{font-size:12px;color:var(--p-dim);margin-top:8px}
 .saved.bad{color:var(--p-bad);font-weight:600}
 .toast.bad{background:#8C4038}
 
 /* ---------- экран ---------- */
-.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+/* overflow-y:auto сам по себе делает блок прокручиваемым и вбок — поэтому
+   боковую прокрутку гасим явно. Ставится последней: сначала колонки ужимаются
+   и слова переносятся, иначе скрытие спрячет то, что вылезло. */
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
         padding:14px 14px 26px;display:flex;flex-direction:column;gap:14px}
 .sec-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);margin-bottom:8px}
 .muted{color:var(--mut);font-size:12px;margin-top:2px}
@@ -128,9 +134,17 @@ a.btn.primary{color:var(--on-stop)}
 
 /* ---------- строки списка ---------- */
 .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;
-      display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;
+      display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;
       min-height:56px;width:100%;text-align:left}
-.item.plain{grid-template-columns:1fr auto}
+.item.plain{grid-template-columns:minmax(0,1fr) auto}
+/* Длинная фамилия или длинное название материала не должны раздвигать строку:
+   без этого лента дня уезжала вбок и кнопки −1/+1 уходили за край экрана */
+.item>*,.todo>*,.wk>*{min-width:0}
+/* Правило общее, а не по списку классов: длинное слово встречается и в имени
+   клиентки, и в названии материала, и в заметке, и в подписи, которую добавят
+   потом. anywhere (а не break-word) обязателен: только он ужимает саму колонку
+   сетки, а не просто переносит текст внутри неё. */
+.screen, .sh-body{overflow-wrap:anywhere}
 .i-time{font-size:12.5px;color:var(--mut);font-variant-numeric:tabular-nums}
 .i-who{font-size:14.5px;font-weight:600}
 .i-what{font-size:12px;color:var(--mut);margin-top:2px}
@@ -163,7 +177,7 @@ a.btn.primary{color:var(--on-stop)}
           border-radius:10px;color:var(--ink);font-size:16px;display:flex;
           align-items:center;justify-content:center}
 
-.wk{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;
+.wk{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:center;
     background:var(--card);border:1px solid var(--line);border-radius:12px;
     padding:11px 13px;min-height:58px;width:100%;text-align:left}
 .wk.now{border-color:var(--stop);background:var(--tint)}
@@ -187,7 +201,7 @@ a.btn.primary{color:var(--on-stop)}
 .cell .dots u{font-size:9px;color:var(--stop);text-decoration:none;font-weight:600;line-height:1}
 
 .todo{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;
-      display:grid;grid-template-columns:9px 1fr auto;gap:10px;align-items:center;min-height:56px;width:100%;text-align:left}
+      display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:56px;width:100%;text-align:left}
 .mk{width:9px;height:9px;border-radius:50%}
 .act{font-size:12.5px;color:var(--stop);white-space:nowrap}
 
@@ -208,7 +222,7 @@ a.btn.primary{color:var(--on-stop)}
 .chip.on{background:var(--panel);border-color:var(--panel);color:var(--p-ink)}
 .tag{display:inline-block;font-size:10.5px;padding:3px 8px;border-radius:5px;margin-top:6px}
 .tag.red{background:rgba(168,81,71,.13);color:var(--stop)}
-.tag.amber{background:rgba(192,138,62,.15);color:var(--warn)}
+.tag.amber{background:rgba(192,138,62,.15);color:var(--warn-ink)}
 .tag.green{background:rgba(75,127,98,.14);color:var(--ok)}
 
 /* ---------- поля ---------- */
@@ -229,7 +243,10 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 .hintline{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
 /* «Запишется так: …» — мастер видит результат, пока говорит.
    Пустая строка места не занимает, поэтому форма не прыгает */
-.prevline{font-size:12px;line-height:1.4;margin-top:5px;color:var(--ok)}
+/* подсказка не должна быть больше поля, которое поясняет:
+   на заметке в тысячу знаков она вырастала на пол-экрана */
+.prevline{font-size:12px;line-height:1.4;margin-top:5px;color:var(--ok);
+          display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .prevline:empty{display:none}
 .prevline.on{background:rgba(75,127,98,.10);border:1px solid rgba(75,127,98,.30);
              border-radius:8px;padding:6px 9px}
@@ -239,8 +256,10 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 .busy{font-size:12.5px;line-height:1.4;border-radius:9px;padding:9px 11px;margin:-4px 0 12px;
       border:1px solid transparent}
 .busy:empty{display:none}
-.busy.free{background:rgba(75,127,98,.10);border-color:rgba(75,127,98,.32);color:var(--ok)}
-.busy.hit{background:rgba(176,131,71,.12);border-color:var(--warn);color:var(--warn);font-weight:600}
+.busy.free{background:rgba(75,127,98,.10);border-color:rgba(75,127,98,.32);color:var(--ok);font-weight:500}
+.busy.hit{background:rgba(176,131,71,.12);border-color:var(--warn);color:var(--warn-ink);font-weight:600}
+/* «Занято…» — единственное, что удерживает от двойной записи. Раньше это была
+   самая бледная надпись на экране, при дневном свете её не прочитать. */
 
 /* ---------- нижняя панель ---------- */
 .tabbar{flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
@@ -296,6 +315,10 @@ body.deep .app{transform:scale(.925) translateY(10px);border-radius:14px;
        background:var(--panel);color:var(--p-ink);font-size:13px;padding:11px 16px;border-radius:10px;
        opacity:0;pointer-events:none;transition:all .2s ease;max-width:88vw;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+/* При открытой форме сообщение уходит вниз: наверху оно ложилось прямо на
+   заголовок формы, и мастер переставала понимать, где находится. */
+body.deep .toast{top:auto;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translate(-50%,14px)}
+body.deep .toast.on{transform:translate(-50%,0)}
 </style>
 </head>
 
@@ -418,7 +441,12 @@ function shortDate(isoStr){
      Пусть строка выйдет прочерком, а не уронит экран целиком. */
   if(!isoStr) return '—';
   var p = isoStr.split('-');
-  return (+p[2]) + ' ' + MONTHS[+p[1]-1];
+  var out = (+p[2]) + ' ' + MONTHS[+p[1]-1];
+  /* Год дописываем только у чужого года. В истории клиентки иначе идут три
+     одинаковые строки «31 августа», а формулу она выбирает именно по дате.
+     Писать год везде нельзя: в ленте сегодняшнего дня он только шумит. */
+  if(p[0] !== today().slice(0, 4)) out += ' ' + p[0];
+  return out;
 }
 /* неделя считается с понедельника: так её видит мастер, а не браузер */
 function weekStart(isoStr){
@@ -515,7 +543,14 @@ function seed(){
     {id:'c10', name:'Вера Логинова',    phone:'+7 968 555-66-77', link:'telegram', cycleRoots:35, cycleCut:56, allergy:shiftDays(t,-250), note:''}
   ];
   var appts = [];
-  function add(o){ appts.push(o); }
+  /* название и род работы кладутся в саму запись — как и в рабочем кабинете,
+     чтобы пример вёл себя ровно так же, как настоящие записи */
+  function add(o){
+    var s = services.filter(function(x){ return x.id === o.serviceId; })[0];
+    if(!o.svcName) o.svcName = (s && s.name) || 'Процедура';
+    if(!o.svcKind) o.svcKind = (s && s.kind) || 'care';
+    appts.push(o);
+  }
   /* формула хранится полным набором полей: так её не приходится
      проверять на существование в каждом месте, где она показывается */
   function card(o){
@@ -751,6 +786,15 @@ function load(){
   if(DB.settings.signature == null) DB.settings.signature = '';
   if(DB.settings.stockAskedOn === undefined) DB.settings.stockAskedOn = null;
   if(DB.settings.backupSnoozed === undefined) DB.settings.backupSnoozed = null;
+  /* границы рабочего дня — не украшение: без них лента дня и весь экран
+     «Сегодня» падают на первом же расчёте времени */
+  if(!DB.settings.workStart) DB.settings.workStart = '09:00';
+  if(!DB.settings.workEnd)   DB.settings.workEnd   = '21:00';
+  /* недостающие разделы восполняем так же, как это делает загрузка копии,
+     иначе база из более ранней сборки роняет вкладки при каждом нажатии */
+  if(!Array.isArray(DB.clients)) DB.clients = [];
+  if(!Array.isArray(DB.appts))   DB.appts   = [];
+  if(!Array.isArray(DB.stock))   DB.stock   = [];
   if(!Array.isArray(DB.clean)) DB.clean = [];
   if(!Array.isArray(DB.notes)) DB.notes = [];
   /* карточка клиента из более ранней сборки: один ритм разворачиваем в два.
@@ -760,6 +804,16 @@ function load(){
     if(c.cycleCut === undefined) c.cycleCut = c.cycle ? Math.round(c.cycle * 1.6) : null;
     if(c.allergy === undefined) c.allergy = null;
   });
+  /* Записи из более ранней сборки не знают, что за работа в них была: раньше
+     это каждый раз брали из прайса. Переносим название и род один раз — по
+     нынешнему прайсу, пока он ещё цел. Дальше правка прайса на прошлое не влияет. */
+  DB.appts.forEach(function(a){
+    if(a.svcName && a.svcKind) return;
+    var s = (DB.services || []).filter(function(x){ return x.id === a.serviceId; })[0];
+    if(!a.svcName) a.svcName = (s && s.name) || 'Процедура';
+    if(!a.svcKind) a.svcKind = (s && s.kind) || 'care';
+  });
+  MY_STAMP = DB.stamp || 0;
   tidyStatuses();
   document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
 }
@@ -780,11 +834,36 @@ function tidyStatuses(){
 }
 
 var SAVE_OK = true;
+/* Кабинет может быть открыт дважды: иконкой на экране и забытой вкладкой
+   в Safari. Оба окна пишут всю базу целиком, поэтому второе молча затирало
+   то, что записали в первом. Метка времени в самой базе позволяет это
+   заметить: если в памяти телефона лежит запись новее нашей, значит писало
+   другое окно. Данные мы при этом не подменяем — человек может как раз
+   заполнять форму, — а честно предупреждаем. */
+var MY_STAMP = 0;
+var CLASH_TOLD = false;
+
+function otherWindowWrote(){
+  if(DEMO) return false;
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return false;
+    var stamp = JSON.parse(raw).stamp || 0;
+    return MY_STAMP && stamp && stamp > MY_STAMP;
+  }catch(e){ return false; }
+}
+
 function save(silent){
   /* в шаблоне для показа сохранять некуда и незачем: правки живут
      до перезагрузки страницы */
   if(DEMO){ SAVED_AT = null; paintSaved(); return; }
+  if(otherWindowWrote() && !CLASH_TOLD){
+    CLASH_TOLD = true;
+    toast('Кабинет открыт ещё где-то, и там записали своё. Закройте лишнюю вкладку ' +
+          'и перезагрузите эту, иначе записи затрут друг друга', true);
+  }
   try{
+    DB.stamp = MY_STAMP = Date.now();
     localStorage.setItem(KEY, JSON.stringify(DB));
     SAVED_AT = new Date();
     SAVE_OK = true;
@@ -802,7 +881,13 @@ function snapshot(){
 }
 function undo(){
   if(!UNDO.length){ toast('Отменять нечего'); return; }
+  /* тема и скрытая подсказка — это вид, а не записи: отмена постороннего
+     действия не должна перекрашивать кабинет */
+  var keepTheme = DB.settings && DB.settings.theme;
+  var keepHidden = DB.settings && DB.settings.installHidden;
   DB = JSON.parse(UNDO.pop());
+  if(keepTheme) DB.settings.theme = keepTheme;
+  if(keepHidden !== undefined) DB.settings.installHidden = keepHidden;
   document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
   save(); render();
   toast('Последнее действие отменено');
@@ -812,23 +897,47 @@ function undo(){
 
 <script>
 /* ================= общее ================= */
+/* Дату сборки подставляет сборщик. Она видна в «Ещё → Настройки»: без неё
+   ни мастер, ни тот, кто ей помогает, не может сказать, обновился кабинет
+   или телефон показывает вчерашний файл. */
+var SBORKA = '31.08.2026';
 var TAB = 'today';
 var VIEW = {};                    /* временное состояние экранов: поиск, выбранный клиент и т.п. */
 
 function $(id){ return document.getElementById(id); }
-function svc(id){ return DB.services.filter(function(s){ return s.id === id; })[0] || {name:'Процедура', dur:60, price:0, kind:'care'}; }
+function svc(id){ return DB.services.filter(function(s){ return s.id === id; })[0] || {name:'Процедура', dur:60, price:0, kind:null}; }
+
+/* Что за работа была в этом приёме.
+
+   Раньше кабинет каждый раз лез за названием и родом работы в прайс — а прайс
+   мастер правит: убирает то, чего больше не делает, переименовывает, меняет род.
+   Стоило убрать «Окрашивание корней», и все прошлые окрашивания превращались
+   в уход: у клиенток слетал отсчёт «пора звать», а у первого окрашивания молча
+   пропадало напоминание об аллергопробе.
+
+   Теперь название и род записываются в саму запись в момент её создания —
+   так же, как давно записываются длительность и цена. Прайс правится свободно,
+   прошлое остаётся как было. */
+function workName(a){
+  return (a && a.svcName) || svc(a && a.serviceId).name;
+}
+function workKind(a){
+  if(a && a.svcKind) return a.svcKind;
+  var k = svc(a && a.serviceId).kind;
+  return k || null;
+}
 function cli(id){ return DB.clients.filter(function(c){ return c.id === id; })[0] || {name:'Клиент', phone:'', cycleRoots:35, cycleCut:56}; }
 function apptById(id){ return DB.appts.filter(function(a){ return a.id === id; })[0]; }
 function byTime(a, b){ return (a.date + a.time) < (b.date + b.time) ? -1 : 1; }
 function apptsOn(d){ return DB.appts.filter(function(a){ return a.date === d && a.status !== 'cancel'; }).sort(byTime); }
-function isColor(a){ return svc(a.serviceId).kind === 'color'; }
+function isColor(a){ return workKind(a) === 'color'; }
 
 /* Последний приём нужного рода: окрашивание считается отдельно от стрижки,
    потому что корни обновляют раз в месяц, а стрижку — раз в полтора-два. */
 function lastVisitKind(clientId, kind){
   var list = DB.appts.filter(function(a){
     return a.clientId === clientId && (a.status === 'paid' || a.status === 'done') &&
-           (!kind || svc(a.serviceId).kind === kind);
+           (!kind || workKind(a) === kind);
   }).sort(byTime);
   return list.length ? list[list.length-1].date : null;
 }
@@ -843,7 +952,7 @@ var CYCLE_DEFAULT = { color:35, cut:56 };
 function observedCycle(clientId, kind){
   var list = DB.appts.filter(function(a){
     return a.clientId === clientId && (a.status === 'paid' || a.status === 'done') &&
-           svc(a.serviceId).kind === kind;
+           workKind(a) === kind;
   }).sort(byTime);
   if(list.length < 2) return null;
   /* берём последние три промежутка: раньше клиент мог ходить по-другому */
@@ -1052,7 +1161,11 @@ function dayStats(d){
     if(a.status === 'paid') got += a.price;
   });
   var ws = mins(DB.settings.workStart), we = mins(DB.settings.workEnd);
-  var cur = ws, free = [], over = 0;
+  /* Отсчёт начинаем с более раннего из двух: начала рабочего дня и первого
+     приёма. Иначе клиентка «до работы», в восемь при рабочем дне с девяти,
+     каждый раз помечалась накладкой на приём, которого не было. */
+  var cur = list.length ? Math.min(ws, mins(list[0].time)) : ws;
+  var free = [], over = 0;
   list.forEach(function(a){
     var st = mins(a.time);
     if(st - cur >= 30) free.push({ from:cur, to:st });
@@ -1074,7 +1187,9 @@ function dayRibbon(st, nextId, emptyText){
     h += '<div class="empty">' + esc(emptyText || 'Записей на сегодня нет') + '</div>';
     return h + '</div>';
   }
-  var cur = mins(DB.settings.workStart);
+  /* та же поправка, что в dayStats: лента и счётчик накладок должны
+     считать одинаково, иначе цифра и картинка разойдутся */
+  var cur = Math.min(mins(DB.settings.workStart), mins(st.list[0].time));
   st.list.forEach(function(a){
     var start = mins(a.time);
     if(start - cur >= 30){
@@ -1097,7 +1212,7 @@ function dayRibbon(st, nextId, emptyText){
     h += '<button class="item ' + cl + '" data-act="apptCard" data-id="' + a.id + '">' +
            '<div class="i-time">' + a.time + '</div>' +
            '<div><div class="i-who">' + esc(cli(a.clientId).name) + '</div>' +
-           '<div class="i-what">' + esc(svc(a.serviceId).name) + '</div></div>' +
+           '<div class="i-what">' + esc(workName(a)) + '</div></div>' +
            '<div class="i-sum">' + mark + '<div class="muted">' + dur(a.dur) + '</div></div>' +
          '</button>';
   });
@@ -1124,7 +1239,7 @@ function backupDue(){
 function backupBar(){
   var lb = DB.settings.lastBackup;
   return '<div class="addbar">' +
-    '<div class="ab-ic" aria-hidden="true"><span>КОПИЯ</span><span>РАЗ В</span><span>НЕДЕЛЮ</span></div>' +
+    '<div class="ab-ic" aria-hidden="true">' + scissorsMark(27) + '</div>' +
     '<div><div class="ab-t">' + (lb ? 'Копия сделана ' + shortDate(lb) : 'Копию ещё не делали') + '</div>' +
     '<div class="muted">Записи и формулы лежат только в этом телефоне. Файл копии уйдёт ' +
       'в загрузки — положите его в облачную папку.</div>' +
@@ -1159,19 +1274,23 @@ function renderToday(){
 
   if(backupDue()) h += backupBar();
 
-  var running = st.list.filter(function(a){ return a.status === 'running'; })[0];
+  /* идущий приём ищется по всей базе, а не только среди сегодняшних: он мог
+     начаться вчера вечером и перевалить за полночь, или быть отмечен задним
+     числом. Пропасть с экрана он не имеет права — иначе кнопку «Завершить»
+     негде нажать. */
+  var running = DB.appts.filter(function(a){ return a.status === 'running'; })[0];
   var doneUnpaid = st.list.filter(function(a){ return a.status === 'done'; })[0];
   var next = st.list.filter(function(a){ return a.status === 'plan' && mins(a.time) + a.dur >= nowM; })[0]
           || st.list.filter(function(a){ return a.status === 'plan'; })[0];
 
   if(running){
-    var c = cli(running.clientId), s = svc(running.serviceId);
+    var c = cli(running.clientId), sName = workName(running);
     var passed = running.startedAt ? Math.round((Date.now() - running.startedAt)/60000) : 0;
     var left = running.dur - passed;
     h += '<div class="hero">' +
       '<div class="badge">СЕЙЧАС ИДЁТ ПРИЁМ</div>' +
       '<div class="h-who">' + esc(c.name) + '</div>' +
-      '<div class="h-what">' + esc(s.name) + ' · ' + rub(running.price) + '</div>' +
+      '<div class="h-what">' + esc(sName) + ' · ' + rub(running.price) + '</div>' +
       '<div class="prog-l"><span>Идёт ' + dur(Math.max(0,passed)) + ' из ' + dur(running.dur) + '</span>' +
       '<span>' + (left > 0 ? 'осталось ' + dur(left) : 'время вышло') + '</span></div>' +
       '<div class="prog"><div style="width:' + Math.min(100, Math.round(passed/running.dur*100)) + '%"></div></div>' +
@@ -1184,7 +1303,7 @@ function renderToday(){
     h += '<div class="hero">' +
       '<div class="badge ok">ПРИЁМ ЗАВЕРШЁН</div>' +
       '<div class="h-who">' + esc(c2.name) + '</div>' +
-      '<div class="h-what">' + esc(svc(doneUnpaid.serviceId).name) + ' · ждёт отметки об оплате</div>' +
+      '<div class="h-what">' + esc(workName(doneUnpaid)) + ' · ждёт отметки об оплате</div>' +
       '<div class="btns"><button class="btn green" data-act="pay" data-id="' + doneUnpaid.id + '">Отметить оплату ' + rub(doneUnpaid.price) + '</button></div>' +
       '<div class="btns two"><button class="btn" data-act="bookNext" data-id="' + doneUnpaid.clientId + '">Записать на следующий раз</button>' +
       '<button class="btn" data-act="editCard" data-id="' + doneUnpaid.id + '">Что делали</button></div>' +
@@ -1194,7 +1313,7 @@ function renderToday(){
     h += '<div class="hero">' +
       '<div class="badge mut">СЛЕДУЮЩИЙ ПРИЁМ · ' + next.time + '</div>' +
       '<div class="h-who">' + esc(c3.name) + '</div>' +
-      '<div class="h-what">' + esc(svc(next.serviceId).name) + ' · ' + dur(next.dur) + ' · ' + rub(next.price) + '</div>' +
+      '<div class="h-what">' + esc(workName(next)) + ' · ' + dur(next.dur) + ' · ' + rub(next.price) + '</div>' +
       '<div class="btns"><button class="btn primary" data-act="start" data-id="' + next.id + '">Начать приём</button></div>' +
       '<div class="btns two"><button class="btn" data-act="write" data-id="' + next.clientId + '">Написать</button>' +
       '<button class="btn" data-act="apptCard" data-id="' + next.id + '">Открыть запись</button></div>' +
@@ -1512,7 +1631,7 @@ function viewList(){
     h += '<button class="item" data-act="apptCard" data-id="' + a.id + '">' +
            '<div class="i-time">' + a.time + '</div>' +
            '<div><div class="i-who">' + esc(cli(a.clientId).name) + '</div>' +
-           '<div class="i-what">' + esc(svc(a.serviceId).name) + '</div>' + mark + '</div>' +
+           '<div class="i-what">' + esc(workName(a)) + '</div>' + mark + '</div>' +
            '<div class="i-sum">' + rub(a.price) + '<div class="muted">' + dur(a.dur) + '</div></div>' +
          '</button>';
   });
@@ -2067,7 +2186,7 @@ function pageMoney(){
   var sum = 0, byService = {};
   paid.forEach(function(a){
     sum += a.price;
-    var n = svc(a.serviceId).name;
+    var n = workName(a);
     byService[n] = (byService[n] || 0) + a.price;
   });
   var wait = DB.appts.filter(function(a){ return a.status === 'done'; })
@@ -2076,8 +2195,11 @@ function pageMoney(){
     '<div class="stat"><span>Приёмов</span><b>' + paid.length + '</b></div>' +
     '<div class="stat"><span>Получено</span><b>' + rub(sum) + '</b></div>' +
     '<div class="stat"><span>Средний чек</span><b>' + rub(paid.length ? Math.round(sum/paid.length) : 0) + '</b></div>' +
-    '<div class="stat"><span>Ждёт оплаты</span><b>' + rub(wait) + '</b></div>' +
-    '</div></div>';
+    '</div></div>' +
+    (wait ? '<div class="card" style="margin-top:12px"><div class="stats" style="grid-template-columns:1fr">' +
+      '<div class="stat"><span>Ждёт оплаты, за всё время</span><b>' + rub(wait) + '</b></div>' +
+      '</div><div class="hintline">Приёмы, которые проведены, но не отмечены оплаченными. ' +
+      'Сюда попадают и давние — поэтому эта строка стоит отдельно от тридцати дней.</div></div>' : '');
   var rows = Object.keys(byService).sort(function(a, b){ return byService[b] - byService[a]; });
   h += '<div class="card" style="margin-top:12px"><div class="sec-t">По процедурам</div>';
   if(!rows.length) h += '<div class="empty">Оплаченных приёмов пока нет</div>';
@@ -2127,6 +2249,7 @@ function pageQuality(){
   });
   var idle = DB.stock.filter(function(m){
     if(!/краск/i.test(m.name)) return false;
+    if(!(m.qty > 0)) return false;      /* нулевой остаток не «лежит зря» — его нет */
     var t = m.name.match(/(\d{1,2}[.,]\d{1,3})/);
     if(!t) return false;
     return !usedTones[t[1].replace(',', '.')];
@@ -2246,6 +2369,13 @@ function pageSettings(){
       '</div>' +
       '<div class="hintline">Очистка удаляет клиентов, записи и формулы. Перед этим сохраните копию, ' +
         'если записи ещё нужны.</div>');
+  h += '<div class="sec-t" style="margin-top:20px">Версия кабинета</div>' +
+    '<div class="stats" style="grid-template-columns:1fr">' +
+      '<div class="stat"><span>Сборка от</span><b>' + esc(SBORKA) + '</b></div>' +
+    '</div>' +
+    '<div class="hintline">Если после обновления файлов здесь стоит прежняя дата — ' +
+    'новая версия до телефона ещё не дошла. Потяните экран пальцем вниз, чтобы ' +
+    'кабинет перезагрузился, или закройте его совсем и откройте с иконки заново.</div>';
   openSheet('Настройки', h,
     '<button class="btn primary" data-act="saveSettings">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
@@ -2329,7 +2459,7 @@ function clientCard(id){
              : a.status === 'running' ? 'идёт' : 'запланировано';
     h += '<button class="item plain" data-act="apptCard" data-id="' + a.id + '">' +
          '<div><div class="i-who">' + shortDate(a.date) + '</div>' +
-         '<div class="i-what">' + esc(svc(a.serviceId).name) + '</div></div>' +
+         '<div class="i-what">' + esc(workName(a)) + '</div></div>' +
          '<div class="i-sum">' + mark + '</div></button>';
   });
   h += '</div></div>';
@@ -2342,10 +2472,10 @@ function clientCard(id){
 
 function apptCard(id){
   var a = apptById(id); if(!a) return;
-  var c = cli(a.clientId), s = svc(a.serviceId);
+  var c = cli(a.clientId);
   var h = '<div class="card"><div class="stats" style="grid-template-columns:1fr">' +
     '<div class="stat"><span>Когда</span><b>' + shortDate(a.date) + ', ' + a.time + '</b></div>' +
-    '<div class="stat"><span>Процедура</span><b>' + esc(s.name) + '</b></div>' +
+    '<div class="stat"><span>Процедура</span><b>' + esc(workName(a)) + '</b></div>' +
     '<div class="stat"><span>Длительность</span><b>' + dur(a.dur) + '</b></div>' +
     (a.fact && a.fact !== a.dur
       ? '<div class="stat"><span>Кнопки нажаты через</span><b>' + dur(a.fact) + '</b></div>' : '') +
@@ -2374,7 +2504,12 @@ function apptCard(id){
 
   var foot = '';
   if(a.status === 'plan') foot += '<button class="btn primary" data-act="start" data-id="' + a.id + '">Начать приём</button>';
-  if(a.status === 'running') foot += '<button class="btn primary" data-act="finish" data-id="' + a.id + '">Завершить приём</button>';
+  if(a.status === 'running'){
+    foot += '<button class="btn primary" data-act="finish" data-id="' + a.id + '">Завершить приём</button>';
+    /* начали не ту запись — можно отыграть назад прямо отсюда, а не искать
+       эту кнопку на экране «Сегодня», где записи чужого дня не видно */
+    foot += '<button class="btn" data-act="cancelStart" data-id="' + a.id + '">Отменить начало</button>';
+  }
   if(a.status === 'done') foot += '<button class="btn green" data-act="pay" data-id="' + a.id + '">Отметить оплату</button>';
   if(a.status === 'plan' && a.date > today()){
     foot += '<button class="btn" data-act="sendConfirm" data-id="' + a.id + '">' +
@@ -2383,12 +2518,14 @@ function apptCard(id){
       foot += '<button class="btn" data-act="sendRemind" data-id="' + a.id + '">Напомнить о завтрашнем приёме</button>';
     }
   }
-  /* перенести можно и сегодняшнюю запись, пока приём не начался */
-  if(a.status === 'plan' && a.date >= today()){
+  /* Изменить можно любую незавершённую запись, в том числе вчерашнюю:
+     промахнулась в календаре — поправит, а не будет удалять и заводить заново,
+     теряя формулу. */
+  if(a.status === 'plan'){
     foot += '<button class="btn" data-act="moveAppt" data-id="' + a.id + '">Изменить запись</button>';
   }
   foot += '<button class="btn" data-act="editCard" data-id="' + a.id + '">Что делали</button>';
-  foot += '<button class="btn ghost" data-act="delAppt" data-id="' + a.id + '">Удалить запись</button>';
+  foot += '<button class="btn ghost" data-act="askDelAppt" data-id="' + a.id + '">Удалить запись</button>';
   openSheet(c.name, h, foot);
 }
 
@@ -2599,7 +2736,10 @@ function speechPiece(raw){
     s += (s && !/[\n]$/.test(s) ? ' ' : '') + t.w;
   });
   s = s.replace(/\s+([,.;:!?…])/g, '$1')
-       .replace(/([,;:])(?=[^\s])/g, '$1 ')
+       /* пробел нужен между словами, но не внутри числа:
+          «пропорция 1:1», «оксид 1,5 %», «пришла в 10:30» */
+       .replace(/([,;:])(?=[^\s\d])/g, '$1 ')
+       .replace(/(\D)([,;:])(?=\d)/g, '$1$2 ')
        .replace(/,\s*(?=[,.;:!?…])/g, '')          /* запятая перед другим знаком не нужна */
        .replace(/\s*\n\s*/g, '\n').trim();
   if(!s) return '';
@@ -2917,9 +3057,19 @@ function parseStory(text){
       }
       case 'oxideShort': {
         /* «на шести» после осветления или тонирования относится к ним,
-           а не к основной краске */
+           а не к основной краске.
+
+           Но «на девять уровень», «на два тона», «на три часа» — это не оксид.
+           Раньше кабинет хватал число сразу за «на» и молча записывал его
+           процентом в ту самую карточку, которую через месяц надо повторить
+           точно. Теперь смотрим на слово после числа: если оно называет
+           не оксид, оборот целиком уходит в «Не поняла». */
         var n = c.word.split(' ')[1];
         var restOx = v.replace(/^%\s*/, '').trim();
+        if(/^(уровень|уровня|уровней|уровнях|тон|тона|тонов|час|часа|часов|минут[а-яё]*|зон[а-яё]*|номер[а-яё]*)\b/i.test(restOx)){
+          res.rest.push('на ' + n + ' ' + restOx);
+          break;
+        }
         var toBleach = (prevField === 'bleach' || prevField === 'bleachPowder') && k.bleach;
         if(toBleach){
           k.bleach += ', ' + n + ' %';
@@ -3196,19 +3346,22 @@ function formAppt(preClient){
     '<button class="btn primary" data-act="saveAppt">Сохранить запись</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
 
-  /* сменили процедуру — время и цена подставляются заново, но только если
-     мастер их ещё не правил руками */
-  var touched = false;
-  ['f_h', 'f_m', 'f_price'].forEach(function(fid){
-    var el = $(fid); if(el) el.addEventListener('input', function(){ touched = true; });
+  /* Сменили процедуру — время и цена подставляются заново, но только те,
+     которых мастер ещё не касалась. Раньше флаг был один на всё: поправишь
+     цену — и балаяж запишется на час от стрижки, поправишь минуты —
+     и цена останется стрижкина. */
+  var setDur = false, setPrice = false;
+  ['f_h', 'f_m'].forEach(function(fid){
+    var el = $(fid); if(el) el.addEventListener('input', function(){ setDur = true; });
   });
+  var pr = $('f_price');
+  if(pr) pr.addEventListener('input', function(){ setPrice = true; });
   var sel = $('f_service');
   if(sel) sel.addEventListener('change', function(){
-    if(!touched){
-      var s = svc(sel.value);
-      if(s){ $('f_h').value = Math.floor(s.dur / 60);
-             $('f_m').value = s.dur % 60;
-             $('f_price').value = s.price; }
+    var s = svc(sel.value);
+    if(s){
+      if(!setDur){ $('f_h').value = Math.floor(s.dur / 60); $('f_m').value = s.dur % 60; }
+      if(!setPrice){ $('f_price').value = s.price; }
     }
     paintBusy();
   });
@@ -3234,7 +3387,24 @@ function formAppt(preClient){
    краски, от того, что мастер договорилась с клиентом. */
 function formMove(id){
   var a = apptById(id); if(!a) return;
-  var h = '<div class="two-col">' +
+  /* Клиентка пришла на корни, а решила делать балаяж — поменять работу в записи
+     раньше было нечем, приходилось удалять и заводить заново, теряя формулу.
+     Цену и длительность при смене процедуры кабинет НЕ трогает: здесь они уже
+     свои, договорные, и подставлять прайсовые поверх нельзя. */
+  var mvClients = DB.clients.slice().sort(function(x, y){ return x.name > y.name ? 1 : -1; })
+    .map(function(c){
+      return '<option value="' + c.id + '"' + (c.id === a.clientId ? ' selected' : '') + '>' +
+             esc(c.name) + '</option>';
+    }).join('');
+  var mvServices = DB.services.map(function(s){
+    return '<option value="' + s.id + '"' + (s.id === a.serviceId ? ' selected' : '') + '>' +
+           esc(s.name) + '</option>';
+  }).join('');
+  var h = '<div class="field"><label class="lab">Клиент</label>' +
+      '<select class="inp" id="mv_client">' + mvClients + '</select></div>' +
+    '<div class="field"><label class="lab">Процедура</label>' +
+      '<select class="inp" id="mv_service">' + mvServices + '</select></div>' +
+    '<div class="two-col">' +
     '<div class="field"><label class="lab">Дата</label>' +
       '<input class="inp" id="mv_date" type="date" value="' + a.date + '"></div>' +
     '<div class="field"><label class="lab">Время</label>' +
@@ -3251,9 +3421,10 @@ function formMove(id){
     '<div class="busy" id="mv_busy"></div>' +
     '<div class="field"><label class="lab">Стоимость, ₽</label>' +
       '<input class="inp" id="mv_price" inputmode="numeric" value="' + (a.price || 0) + '"></div>' +
-    '<div class="hintline">Сейчас записано: ' + shortDate(a.date) + ', ' + a.time + ', ' +
-    dur(a.dur) + ', ' + rub(a.price) + '. Если поменяете дату или время, отметка о ' +
-    'подтверждении снимется — клиенту уходило другое.</div>';
+    '<div class="hintline">Сейчас записано: ' + esc(workName(a)) + ', ' + shortDate(a.date) +
+    ', ' + a.time + ', ' + dur(a.dur) + ', ' + rub(a.price) + '. Если поменяете процедуру, ' +
+    'длительность и цена останутся ваши — кабинет их не перебьёт прайсом. ' +
+    'Если поменяете дату или время, отметка о подтверждении снимется: клиенту уходило другое.</div>';
   openSheet('Изменить запись', h,
     '<button class="btn primary" data-act="saveMove" data-id="' + a.id + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
@@ -3302,6 +3473,28 @@ function formClient(id){
   if(id) foot += '<button class="btn" data-act="askDelClient" data-id="' + id + '">Удалить клиента</button>';
   foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
   openSheet(id ? 'Изменить клиента' : 'Новый клиент', h, foot);
+}
+
+/* Один вопрос «точно?» на все места, где действие что-то ломает или теряет.
+   Раньше такой вопрос был только у удаления клиента, а оплаченный приём с
+   формулой уходил по одному касанию. */
+function askSheet(what, why, doText, act, id){
+  openSheet('Подтвердите',
+    '<div class="note">' + what + '</div>' +
+    (why ? '<div class="hintline">' + why + '</div>' : ''),
+    '<button class="btn" data-act="' + act + '" data-id="' + (id || '') + '">' + doText + '</button>' +
+    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+}
+
+function doStart(a){
+  snapshot();
+  DB.appts.forEach(function(x){ if(x.status === 'running'){ x.status = 'plan'; x.startedAt = null; } });
+  a.status = 'running';
+  /* приём вчерашнего дня отсчитывается от времени записи, а не от «сейчас»:
+     иначе кабинет показал бы «идёт 26 часов» */
+  a.startedAt = (a.date === today()) ? Date.now() : null;
+  save(); closeSheet(); render();
+  toast(a.date === today() ? 'Приём начат' : 'Приём отмечен задним числом — не забудьте «Завершить»');
 }
 
 function formAllergy(id){
@@ -3383,14 +3576,14 @@ function msgText(kind, obj){
     else what = 'давно не виделись';
     return 'Здравствуйте, ' + firstName(c0) + '! По моим записям ' + what + ' — подберём удобное время?';
   }
-  var a = obj, c = cli(a.clientId), s = svc(a.serviceId);
+  var a = obj, c = cli(a.clientId), sName = workName(a);
   if(kind === 'confirm'){
     return 'Здравствуйте, ' + firstName(c) + '! Записала вас на ' + dateAcc(a.date) +
-           ', ' + a.time + '. ' + s.name + ', ' + dur(a.dur) + ', ' + rub(a.price) + '.' + tail +
+           ', ' + a.time + '. ' + sName + ', ' + dur(a.dur) + ', ' + rub(a.price) + '.' + tail +
            ' Если планы изменятся, напишите, пожалуйста, заранее.';
   }
   return 'Здравствуйте, ' + firstName(c) + '! Напоминаю: завтра в ' + a.time + ' — ' +
-         s.name.toLowerCase() + ', ' + dur(a.dur) + '.' + tail + ' Всё в силе?';
+         sName.toLowerCase() + ', ' + dur(a.dur) + '.' + tail + ' Всё в силе?';
 }
 
 var KIND_TITLE = { confirm:'Подтверждение записи', remind:'Напоминание накануне', invite:'Приглашение вернуться' };
@@ -3454,7 +3647,9 @@ function doBackup(){
   var blob = new Blob([JSON.stringify(DB, null, 1)], {type:'application/json'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url; a.download = 'tochka-krasoty-volosy-' + today() + '.json';
+  /* копия из примера называется по-другому: иначе в «Загрузках» телефона
+     её не отличить от настоящей, и однажды она заменит живые записи */
+  a.href = url; a.download = (DEMO ? 'primer-tochka-krasoty-' : 'tochka-krasoty-volosy-') + today() + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
   /* на первом запуске это учебное нажатие: сохранять базу нельзя, иначе
@@ -3562,9 +3757,14 @@ function restoreApply(){
   DB = RESTORE; RESTORE = null;
   document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
   tidyStatuses();
-  save(); render();
+  /* записи вернулись — экрана «выберите, с чего начать» больше быть не должно:
+     ближайшая на нём кнопка стёрла бы восстановленное */
+  NEED_START = false;
+  save(); setTab('today'); render();
   closeSheet();
-  toast('Записи заменены. Вернуть прежние — кнопкой отмены в шапке');
+  toast(DEMO
+    ? 'Это пример: записи показаны, но не сохранятся — при следующем открытии вернётся пример'
+    : 'Записи заменены. Вернуть прежние — кнопкой отмены в шапке, пока кабинет открыт');
 }
 
 function restoreCancel(){
@@ -3613,15 +3813,30 @@ function busyLine(a){
 function act(name, id){
   switch(name){
     case 'tab': setTab(id); break;
-    case 'hideInstall': snapshot(); DB.settings.installHidden = true; save(); render(); break;
-    case 'showInstall': snapshot(); DB.settings.installHidden = false; save(); closeSheet(); setTab('today'); break;
+    case 'hideInstall': DB.settings.installHidden = true; save(); render(); break;
+    case 'showInstall': DB.settings.installHidden = false; save(); closeSheet(); setTab('today'); break;
 
     case 'start': {
       var a = apptById(id); if(!a) break;
-      snapshot();
-      DB.appts.forEach(function(x){ if(x.status === 'running'){ x.status = 'plan'; x.startedAt = null; } });
-      a.status = 'running'; a.startedAt = Date.now();
-      save(); closeSheet(); render(); toast('Приём начат');
+      /* Идущий приём в кабинете может быть только один. Раньше новый старт
+         молча сбрасывал предыдущий: клиентка сидит в кресле, а её таймер
+         обнулён. Теперь про это спрашивают. */
+      var busyNow = DB.appts.filter(function(x){
+        return x.status === 'running' && x.id !== a.id;
+      })[0];
+      if(busyNow){
+        askSheet('Идёт приём: ' + esc(cli(busyNow.clientId).name) + '.',
+          'Если начать новый, у того приёма собьётся отсчёт времени и его придётся ' +
+          'отмечать задним числом. Сначала лучше нажать «Завершить приём».',
+          'Всё равно начать', 'startAnyway', a.id);
+        break;
+      }
+      doStart(a);
+      break;
+    }
+    case 'startAnyway': {
+      var aSt = apptById(id); if(!aSt) break;
+      doStart(aSt);
       break;
     }
     case 'cancelStart': {
@@ -3631,7 +3846,9 @@ function act(name, id){
     }
     case 'extend': {
       var a3 = apptById(id); if(!a3) break;
-      snapshot(); a3.dur += 15; save(); render(); toast('Добавили 15 минут');
+      snapshot(); a3.dur += 15; save(); render();
+      var wEx = overlapWarn(a3);
+      toast(wEx ? 'Добавили 15 минут. ' + wEx : 'Добавили 15 минут', !!wEx);
       break;
     }
     case 'finish': {
@@ -3640,9 +3857,11 @@ function act(name, id){
       if(a4.startedAt){
         var fact = Math.round((a4.finishedAt - a4.startedAt)/60000);
         a4.fact = fact;
-        /* фактическое время берём в расписание, только если оно правдоподобно:
-           иначе забытая кнопка «Завершить» съедала бы весь день */
-        if(fact >= 5 && fact <= a4.dur + 60){ a4.dur = fact; }
+        /* Фактическое время берём в расписание, только если оно правдоподобно.
+           Сверху — забытая кнопка «Завершить»: она съела бы весь день.
+           Снизу — нажатая по ошибке: раньше «Завершить» через шесть минут
+           навсегда переписывал мужскую стрижку с сорока минут на шесть. */
+        if(fact >= Math.max(5, Math.round(a4.dur / 3)) && fact <= a4.dur + 60){ a4.dur = fact; }
         else { a4.stuck = true; }
       }
       save(); closeSheet(); render();
@@ -3654,10 +3873,29 @@ function act(name, id){
       snapshot(); a5.status = 'paid'; save(); closeSheet(); render(); toast('Оплата отмечена');
       break;
     }
+    case 'askDelAppt': {
+      var ad = apptById(id); if(!ad) break;
+      var hasCard = !!(ad.card && (ad.card.brand || ad.card.rootTone || ad.card.lenTone));
+      var paidUp  = (ad.status === 'paid');
+      /* Пустую будущую запись сносим сразу — это обычная уборка. А если в ней
+         формула или оплата, теряется то, ради чего кабинет и заводили. */
+      if(!hasCard && !paidUp){ act('delAppt', id); break; }
+      var lost = [];
+      if(hasCard) lost.push('формула окрашивания');
+      if(paidUp)  lost.push(rub(ad.price) + ' из отчётов');
+      askSheet(
+        'Удалить приём ' + shortDate(ad.date) + ', ' + esc(workName(ad)) +
+          ' — ' + esc(cli(ad.clientId).name) + '?',
+        'Вместе с ним пропадёт ' + lost.join(' и ') +
+          '. Пока кабинет открыт, это можно вернуть стрелкой в шапке; после ' +
+          'перезагрузки — уже нет.',
+        'Да, удалить', 'delAppt', id);
+      break;
+    }
     case 'delAppt': {
       snapshot();
       DB.appts = DB.appts.filter(function(x){ return x.id !== id; });
-      save(); closeSheet(); render(); toast('Запись удалена, можно вернуть стрелкой наверху');
+      save(); closeSheet(); render(); toast('Запись удалена');
       break;
     }
     case 'apptCard': apptCard(id); break;
@@ -3692,19 +3930,29 @@ function act(name, id){
       var mDur = (parseInt(val('mv_h'), 10) || 0) * 60 + (parseInt(val('mv_m'), 10) || 0);
       if(mDur < 5){ toast('Впишите, сколько идёт приём'); break; }
       var mPrice = parseInt(val('mv_price'), 10) || 0;
+      var mCli = val('mv_client') || am.clientId;
+      var mSvc = val('mv_service') || am.serviceId;
       var moved = (nd !== am.date || nt !== am.time);
-      if(!moved && mDur === am.dur && mPrice === am.price){
+      var swapped = (mCli !== am.clientId || mSvc !== am.serviceId);
+      if(!moved && !swapped && mDur === am.dur && mPrice === am.price){
         closeSheet(); toast('Ничего не изменилось'); break;
       }
       snapshot();
       am.date = nd; am.time = nt; am.dur = mDur; am.price = mPrice;
-      /* отметки снимаются только при переносе: клиенту уходило другое время.
-         Правка цены его не касается */
-      if(moved){ am.sentConfirm = null; am.sentRemind = null; }
+      am.clientId = mCli;
+      if(mSvc !== am.serviceId){
+        /* работу переписываем целиком — и ссылку, и название с родом.
+           Длительность и цену не трогаем: они здесь уже свои */
+        var mS = svc(mSvc);
+        am.serviceId = mSvc; am.svcName = mS.name; am.svcKind = mS.kind || 'care';
+      }
+      /* отметки снимаются при переносе и при смене клиента или работы:
+         клиенту уходило другое. Правка цены его не касается */
+      if(moved || swapped){ am.sentConfirm = null; am.sentRemind = null; }
       save(); closeSheet(); render();
       var wm = overlapWarn(am);
       if(wm) toast(wm, true);
-      else if(moved) toast('Запись перенесена. Подтверждение нужно отправить заново');
+      else if(moved || swapped) toast('Запись изменена. Подтверждение нужно отправить заново');
       else toast('Запись изменена');
       break;
     }
@@ -3745,7 +3993,7 @@ function act(name, id){
     case 'delNote': {
       snapshot();
       DB.notes = DB.notes.filter(function(x){ return x.id !== id; });
-      save(); closeSheet(); render(); toast('Заметка удалена, можно вернуть стрелкой наверху');
+      save(); closeSheet(); render(); toast('Заметка удалена. Вернуть — стрелкой наверху, пока кабинет открыт');
       break;
     }
     case 'closeSheet': closeSheet(); break;
@@ -3919,11 +4167,20 @@ function act(name, id){
     case 'saveAppt': {
       var s2 = svc(val('f_service'));
       var aDur = (parseInt(val('f_h'), 10) || 0) * 60 + (parseInt(val('f_m'), 10) || 0);
+      /* без клиента запись бессмысленна: подтверждение уйдёт «Здравствуйте, Клиент!»,
+         а привязать её потом не к чему. В пустом кабинете это первое, обо что
+         спотыкается новый мастер. */
+      if(!val('f_client')){ toast('Сначала заведите клиента — вкладка «Клиенты»'); break; }
+      if(!val('f_service')){ toast('Сначала заведите процедуру — «Ещё → Процедуры и цены»'); break; }
+      if(!val('f_date') || !val('f_time')){ toast('Укажите дату и время'); break; }
       if(aDur < 5){ toast('Впишите, сколько идёт приём'); break; }
       snapshot();
       var newId = uid();
       var na = {
         id: newId, clientId: val('f_client'), serviceId: val('f_service'),
+        /* название и род работы записываются здесь же: прайс потом можно править
+           и чистить, а эта запись останется такой, какой её сделали */
+        svcName: s2.name, svcKind: s2.kind || 'care',
         date: val('f_date'), time: val('f_time'),
         dur: aDur, price: parseInt(val('f_price'), 10) || 0,
         status:'plan', card:{}, rootsDays:null, toneDays:null, complaint:'', redo:false,
@@ -3938,9 +4195,9 @@ function act(name, id){
       break;
     }
     case 'saveClient': {
-      snapshot();
       var name2 = val('cl_name').trim();
       if(!name2){ toast('Впишите имя'); break; }
+      snapshot();
       var fields = {
         name:name2, phone:tidyPhone(val('cl_phone')),
         link: val('cl_link'), note: val('cl_note'),
@@ -3982,7 +4239,7 @@ function act(name, id){
       snapshot();
       DB.services = DB.services.filter(function(x){ return x.id !== id; });
       save(); closeSheet(); pageServices(); render();
-      toast('Процедура убрана, можно вернуть стрелкой наверху');
+      toast('Процедура убрана. Вернуть — стрелкой наверху, пока кабинет открыт');
       break;
     }
 
@@ -4001,7 +4258,7 @@ function act(name, id){
           ? 'Вместе с ним уйдут ' + parts.join(' и ') + '. Выручка за прошлые приёмы ' +
             'из отчётов тоже пропадёт.'
           : 'Записей и заметок у него нет — уйдёт только карточка.') +
-        ' Вернуть можно стрелкой в шапке кабинета.</div>';
+        ' Вернуть можно стрелкой в шапке, пока кабинет открыт: после перезагрузки уже нет.</div>';
       openSheet('Удалить клиента', body,
         '<button class="btn" data-act="delClient" data-id="' + id + '">Да, удалить</button>' +
         '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
@@ -4015,7 +4272,7 @@ function act(name, id){
       DB.appts   = DB.appts.filter(function(a){ return a.clientId !== id; });
       DB.notes   = DB.notes.filter(function(n){ return n.clientId !== id; });
       save(); closeSheet(); setTab('clients'); render();
-      toast(goneName + ' удалена, можно вернуть стрелкой наверху');
+      toast(goneName + ' удалена. Вернуть — стрелкой наверху, пока кабинет открыт');
       break;
     }
 
@@ -4028,7 +4285,9 @@ function act(name, id){
       snapshot();
       var stFields = { name:n2, unit:val('st_unit') || 'штука',
                        qty:parseInt(val('st_qty'), 10) || 0,
-                       min:parseInt(val('st_min'), 10) || 1 };
+                       /* ноль в норме запаса — это «не напоминать про него».
+                          Единицу подставляем только когда поле пустое. */
+                       min: val('st_min').trim() === '' ? 1 : (parseInt(val('st_min'), 10) || 0) };
       var stOld = id ? DB.stock.filter(function(x){ return x.id === id; })[0] : null;
       if(stOld){ for(var stK in stFields) if(stFields.hasOwnProperty(stK)) stOld[stK] = stFields[stK]; }
       else { stFields.id = uid(); stFields.ordered = false; stFields.note = '';
@@ -4043,7 +4302,7 @@ function act(name, id){
       var stName = (DB.stock.filter(function(x){ return x.id === id; })[0] || {}).name || 'Материал';
       DB.stock = DB.stock.filter(function(x){ return x.id !== id; });
       save(); closeSheet(); render();
-      toast(stName + ' убран, можно вернуть стрелкой наверху');
+      toast(stName + ' убран. Вернуть — стрелкой наверху, пока кабинет открыт');
       break;
     }
     case 'saveClean': {
@@ -4081,10 +4340,13 @@ function renderStart(){
       'кладётся в загрузки телефона, переносится в облачную папку и загружается обратно ' +
       'на любом телефоне. Кабинет напомнит сам — но только напомнит.</div>' +
     '<div class="btns" style="margin-top:14px">' +
+      '<button class="btn primary" data-act="doRestore">У меня уже есть копия — загрузить</button>' +
       '<button class="btn" data-act="doBackup">Попробовать сохранить копию сейчас</button>' +
     '</div>' +
-    '<div class="hintline">Нажмите один раз, чтобы увидеть, куда падает файл. Сейчас он почти пустой — ' +
-      'важно заранее знать дорогу, а не искать её в день, когда телефон потерялся.</div>' +
+    '<div class="hintline">Сменили телефон или очистили браузер — нажмите первую кнопку ' +
+      'и выберите файл копии: записи вернутся все. ' +
+      'Вторая кнопка нужна, только чтобы один раз увидеть, куда падает файл: ' +
+      'важно знать дорогу заранее, а не искать её в день, когда телефон потерялся.</div>' +
     '</div>' +
     '<div class="card" style="margin-top:14px">' +
     '<div class="badge">ПЕРВЫЙ ЗАПУСК</div>' +
@@ -4152,7 +4414,9 @@ $('veil').addEventListener('click', closeSheet);
 $('shClose').addEventListener('click', closeSheet);
 $('btnUndo').addEventListener('click', undo);
 $('btnTheme').addEventListener('click', function(){
-  snapshot();
+  /* тема — это вид, а не записи: в историю отмен она не попадает.
+     Кнопки «Отменить» и «Тема» стоят рядом, и промах по стрелке раньше
+     съедал шаг отмены, ничего не отменив. */
   DB.settings.theme = (DB.settings.theme === 'dark') ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', DB.settings.theme);
   save();
