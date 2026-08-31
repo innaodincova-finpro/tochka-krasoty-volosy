@@ -228,6 +228,8 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 .two-col>*{min-width:0}
 .hintline{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
 /* строка занятости под временем: зелёная — свободно, охра — накладка */
+/* название материала — кнопка на всю ширину строки, но выглядит как текст */
+.stock-t{background:none;border:none;padding:0;text-align:left;width:100%;color:inherit}
 .busy{font-size:12.5px;line-height:1.4;border-radius:9px;padding:9px 11px;margin:-4px 0 12px;
       border:1px solid transparent}
 .busy:empty{display:none}
@@ -850,9 +852,13 @@ function observedCycle(clientId, kind){
   return Math.round(sum / gaps.length);
 }
 
+/* Срок кабинет считает сам: руками его нигде не вписывают.
+   Сначала — по прошлым приёмам этой женщины, потом обычный срок.
+   Старое поле, вписанное вручную, ещё может лежать в данных: если оно есть,
+   уважаем его, но подписываем честно — «взято из карточки». */
 function cycleOf(c, kind){
   var own = (kind === 'color') ? c.cycleRoots : c.cycleCut;
-  if(own) return { days:own, by:'вписано вами' };
+  if(own) return { days:own, by:'взято из карточки' };
   var obs = observedCycle(c.id, kind);
   if(obs) return { days:obs, by:'посчитано по её приёмам' };
   return { days:CYCLE_DEFAULT[kind], by:'пока обычный срок' };
@@ -1537,11 +1543,13 @@ function renderStock(){
   var h = '<button class="btn wide" data-act="addStock">+ Новый материал</button><div class="list">';
   DB.stock.forEach(function(m){
     var low = m.qty <= m.min;
+    /* по названию открывается правка: имя, остаток, норма, единица, удаление */
     h += '<div class="todo">' +
            '<span class="mk" style="background:' + (low ? 'var(--warn)' : 'var(--line)') + '"></span>' +
-           '<span><span style="font-size:14px;font-weight:600">' + esc(m.name) + '</span>' +
-           '<div class="muted">осталось ' + m.qty + ' ' + esc(unitOf(m.qty, m.unit)) + ' · норма ' + m.min +
-           (m.ordered ? ' · заказано' : '') + '</div></span>' +
+           '<button class="stock-t" data-act="editStock" data-id="' + m.id + '">' +
+             '<span style="font-size:14px;font-weight:600">' + esc(m.name) + '</span>' +
+             '<div class="muted">осталось ' + m.qty + ' ' + esc(unitOf(m.qty, m.unit)) + ' · норма ' + m.min +
+             (m.ordered ? ' · заказано' : '') + '</div></button>' +
            '<span style="display:flex;gap:6px">' +
              '<button class="btn sm" data-act="stockMinus" data-id="' + m.id + '">−1</button>' +
              '<button class="btn sm" data-act="stockPlus" data-id="' + m.id + '">+1</button>' +
@@ -1549,9 +1557,10 @@ function renderStock(){
          '</div>';
   });
   h += '</div>';
-  h += '<div class="hintline">Сколько граммов краски ушло на работу, записывается в самой работе — ' +
-       'поле «Расход краски». В тубы это не пересчитывается: остаток уменьшается вечером, ' +
-       'когда вы отмечаете, что закончилось.</div>';
+  h += '<div class="hintline">Нажмите на название, чтобы поправить или убрать материал. ' +
+       'Сколько граммов краски ушло на работу, записывается в самой работе — поле «Расход краски». ' +
+       'В тубы это не пересчитывается: остаток уменьшается вечером, когда вы отмечаете, ' +
+       'что закончилось.</div>';
 
   h += '<div><div class="sec-t">Дезинфекция инструмента</div>' +
        '<button class="btn wide" data-act="addClean">+ Записать дезинфекцию</button><div class="list" style="margin-top:8px">';
@@ -1665,8 +1674,16 @@ var DICT_GAP = 900;                     /* столько миллисекунд
 
 function dictReset(v){ DICT_MARKS = []; DICT_LAST = 0; DICT_PREV = String(v || ''); }
 
+/* Правка поля делается только когда мастер из него вышел.
+
+   Раньше кабинет ждал три секунды тишины и правил текст прямо под пальцем.
+   Так делать нельзя: телефон в это время ещё держит свою диктовку в памяти
+   и, досказав фразу, вставляет её заново — текст удваивался. И сама правка
+   на глазах, с задержкой, выглядела как «кабинет думает».
+
+   Теперь всё происходит в один момент и незаметно: коснулись другого поля
+   или нажали «Сохранить» — текст уже в порядке. */
 var DICT_TIMER = null;
-var DICT_QUIET = 3000;                  /* столько тишины = диктовка закончилась */
 
 /* Наблюдение вешается на любое поле, куда можно диктовать: заметку, формулу,
    телефон. Что делать с надиктованным, поле говорит само — атрибутом
@@ -1689,13 +1706,6 @@ function watchDictation(area){
     DICT_LAST = now;
     DICT_PREV = val;
 
-    /* Знаки расставляются сами, кнопку нажимать не нужно. Ждём три секунды
-       тишины: пока телефон досказывает фразу, он переписывает конец текста
-       по-своему, и вмешиваться туда нельзя — правку затрёт. */
-    if(DICT_TIMER) clearTimeout(DICT_TIMER);
-    DICT_TIMER = setTimeout(function(){
-      if(area.value === DICT_PREV) punctSilent(area);
-    }, DICT_QUIET);
   });
 
   /* ушли из поля — приводим текст в порядок сразу, ждать нечего */
@@ -1778,16 +1788,37 @@ function numsInText(text){
   return res.join('').replace(/\s{2,}/g, ' ').trim();
 }
 
+/* Бренд краски — это марка, а не русское слово: на тубе написано Wella,
+   значит и в кабинете должно стоять Wella, а не «Велла». Телефон слышит
+   бренд по-русски, поэтому переписываем его латиницей везде, где он попался:
+   и в названии материала, и в заметке. */
+function brandLatin(s){
+  return String(s).split(/(\s+)/).map(function(w){
+    var b = w.toLowerCase().replace(/[^а-яёa-z]/g, '');
+    return (b && BRAND_OF.hasOwnProperty(b)) ? w.replace(/[а-яёa-z]+/i, BRAND_OF[b]) : w;
+  }).join('');
+}
+
 /* Название материала: две цифры подряд — это тон краски («7 1» → «7.1»),
    бренд пишется как на тубе («эстель» → «Estel»), первая буква заглавная. */
 function tidyName(s){
-  var out = String(s).replace(/(\d)\s+(\d{1,2})(?![\d.])/g, '$1.$2');
-  out = out.split(/(\s+)/).map(function(w){
-    var b = w.toLowerCase().replace(/[^а-яёa-z]/g, '');
-    return (b && BRAND_OF[b]) ? w.replace(/[а-яёa-z]+/i, BRAND_OF[b]) : w;
-  }).join('');
+  var out = brandLatin(String(s).replace(/(\d)\s+(\d{1,2})(?![\d.])/g, '$1.$2'));
   out = out.trim();
   return out ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+}
+
+/* В заметке две цифры подряд — тон краски только там, где это точно тон:
+   сразу после названия бренда или слова «тон», «краска». В остальных местах
+   «10 30» — это время или расход, и точка между ними всё испортит. */
+function toneDots(s){
+  return String(s).replace(
+    /(^|\s)([A-Za-zА-Яа-яЁё’']+)(\s+)(\d{1,2})\s+(\d{1,2})(?![\d.,])/g,
+    function(all, sp, word, gap, a, b){
+      var k = word.toLowerCase().replace(/[^а-яёa-z]/g, '');
+      var isTone = BRAND_OF.hasOwnProperty(k) ||
+                   /^(тон|тона|тоном|тону|краска|краски|краской|краску)$/.test(k);
+      return isTone ? sp + word + gap + a + '.' + b : all;
+    });
 }
 
 /* Приведение поля в порядок — молча, без сообщений, чтобы не мельтешить. */
@@ -1805,10 +1836,11 @@ function punctSilent(area){
     now = tidyName(numsInText(area.value));
   } else if(mode === 'formula'){
     /* формулу в цифры не переводим: её разбирает свой разбор, и «семь точка
-       один» он понимает лучше, чем «7 точка 1» */
-    now = punctuate(area.value, false);
+       один» он понимает лучше, чем «7 точка 1». А бренд латиницей ставим:
+       разбор одинаково понимает и «эстель», и «Estel». */
+    now = punctuate(brandLatin(area.value), false);
   } else {
-    now = punctuate(numsInText(area.value), true);
+    now = punctuate(brandLatin(toneDots(numsInText(area.value))), true);
   }
 
   if(!now || now === area.value) return;
@@ -2223,15 +2255,14 @@ function clientCard(id){
   })[0];
   var h = '<div class="card"><div class="stats" style="grid-template-columns:1fr">' +
     '<div class="stat"><span>Телефон</span><b>' + esc(c.phone || '—') + '</b></div>' +
-    '<div class="stat"><span>Корни обновляет раз в</span><b>' + days(cr.days) + '</b></div>' +
-    '<div class="stat"><span>Стрижётся раз в</span><b>' + days(cc.days) + '</b></div>' +
     '<div class="stat"><span>Корни</span><b>' + esc(d.roots.text) + '</b></div>' +
     '<div class="stat"><span>Стрижка</span><b>' + esc(d.cut.text) + '</b></div>' +
     '<div class="stat"><span>Аллергопроба</span><b>' +
       (c.allergy ? shortDate(c.allergy) : 'не отмечена') + '</b></div>' +
     '</div>' +
-    '<div class="muted" style="margin-top:8px">Корни: ' + cr.by + '. Стрижка: ' + cc.by +
-    '. Поправить — «Изменить данные».</div>' +
+    /* Сроки кабинет считает сам по прошлым приёмам — руками их никто не вписывает,
+       поэтому здесь только пояснение, откуда взялась дата. */
+    '<div class="muted" style="margin-top:8px">Корни: ' + cr.by + '. Стрижка: ' + cc.by + '.</div>' +
     (c.note ? '<div class="muted" style="margin-top:6px">' + esc(c.note) + '</div>' : '') + '</div>';
 
   if(needAllergy(c)){
@@ -3237,21 +3268,35 @@ function formAllergy(id){
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
 }
 
-function formStock(){
+function formStock(id){
+  var m = id ? DB.stock.filter(function(x){ return x.id === id; })[0] : null;
+  if(id && !m) return;
+  var cur = m || { name:'', qty:1, min:1, unit:'туба' };
+  var units = ['туба','флакон','банка','рулон','упаковка','штука'];
+  var uopts = units.map(function(u){
+    return '<option value="' + u + '"' + (cur.unit === u ? ' selected' : '') + '>' + u + '</option>';
+  }).join('');
+
   var h =
     '<div class="field"><label class="lab">Название</label>' +
-      '<input class="inp" id="st_name" data-mode="name" placeholder="Краска Estel 7.1"></div>' +
+      '<input class="inp" id="st_name" data-mode="name" value="' + esc(cur.name) + '" ' +
+      'placeholder="Краска Estel 7.1"></div>' +
     '<div class="two-col">' +
-      '<div class="field"><label class="lab">Осталось</label><input class="inp" id="st_qty" inputmode="numeric" value="1"></div>' +
-      '<div class="field"><label class="lab">Норма запаса</label><input class="inp" id="st_min" inputmode="numeric" value="1"></div>' +
+      '<div class="field"><label class="lab">Осталось</label>' +
+        '<input class="inp" id="st_qty" inputmode="numeric" value="' + cur.qty + '"></div>' +
+      '<div class="field"><label class="lab">Норма запаса</label>' +
+        '<input class="inp" id="st_min" inputmode="numeric" value="' + cur.min + '"></div>' +
     '</div>' +
-    '<div class="field"><label class="lab">Единица</label><input class="inp" id="st_unit" value="туба"></div>' +
+    '<div class="field"><label class="lab">Единица</label>' +
+      '<select class="inp" id="st_unit">' + uopts + '</select></div>' +
     '<div class="hintline">Единица — как удобнее считать: краска в тубах, оксид во флаконах, ' +
     'порошок в банках, фольга в рулонах, перчатки в упаковках. ' +
     'Если в названии краски написать тон — «Краска Estel 7.1», — отчёт покажет, какие тоны лежат без движения.</div>';
-  openSheet('Новый материал', h,
-    '<button class="btn primary" data-act="saveStock">Сохранить</button>' +
-    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+
+  var foot = '<button class="btn primary" data-act="saveStock" data-id="' + (id || '') + '">Сохранить</button>';
+  if(id) foot += '<button class="btn" data-act="delStock" data-id="' + id + '">Удалить материал</button>';
+  foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
+  openSheet(id ? 'Материал' : 'Новый материал', h, foot);
 }
 
 function formClean(){
@@ -3637,7 +3682,7 @@ function act(name, id){
     case 'saveNote': {
       /* знаки расставляются и без нажатия кнопки: мастер про неё может
          не вспомнить, а заметка нужна читаемой */
-      var ntxt = punctuate(val('story'), true).trim() || val('story').trim();
+      var ntxt = punctuate(brandLatin(toneDots(numsInText(val('story')))), true).trim() || val('story').trim();
       if(!ntxt){ toast('Заметка пустая — расскажите или впишите текст'); break; }
       snapshot();
       var nc = val('nt_client') || null;
@@ -3924,14 +3969,31 @@ function act(name, id){
       break;
     }
 
+    case 'editStock': formStock(id); break;
+
     case 'saveStock': {
-      var n2 = val('st_name').trim();
+      /* название приводится в порядок здесь же: мастер мог не выходить из поля */
+      var n2 = tidyName(numsInText(val('st_name'))).trim();
       if(!n2){ toast('Впишите название'); break; }
       snapshot();
-      DB.stock.push({ id:uid(), name:n2, unit:val('st_unit') || 'шт',
-                      qty:parseInt(val('st_qty'), 10) || 0, min:parseInt(val('st_min'), 10) || 1,
-                      ordered:false, note:'' });
-      save(); closeSheet(); render(); toast('Материал добавлен');
+      var stFields = { name:n2, unit:val('st_unit') || 'штука',
+                       qty:parseInt(val('st_qty'), 10) || 0,
+                       min:parseInt(val('st_min'), 10) || 1 };
+      var stOld = id ? DB.stock.filter(function(x){ return x.id === id; })[0] : null;
+      if(stOld){ for(var stK in stFields) if(stFields.hasOwnProperty(stK)) stOld[stK] = stFields[stK]; }
+      else { stFields.id = uid(); stFields.ordered = false; stFields.note = '';
+             DB.stock.push(stFields); }
+      save(); closeSheet(); render();
+      toast(stOld ? 'Сохранено' : 'Материал добавлен');
+      break;
+    }
+
+    case 'delStock': {
+      snapshot();
+      var stName = (DB.stock.filter(function(x){ return x.id === id; })[0] || {}).name || 'Материал';
+      DB.stock = DB.stock.filter(function(x){ return x.id !== id; });
+      save(); closeSheet(); render();
+      toast(stName + ' убран, можно вернуть стрелкой наверху');
       break;
     }
     case 'saveClean': {
