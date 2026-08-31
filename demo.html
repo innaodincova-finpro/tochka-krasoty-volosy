@@ -2227,7 +2227,7 @@ function apptCard(id){
   }
   /* перенести можно и сегодняшнюю запись, пока приём не начался */
   if(a.status === 'plan' && a.date >= today()){
-    foot += '<button class="btn" data-act="moveAppt" data-id="' + a.id + '">Перенести</button>';
+    foot += '<button class="btn" data-act="moveAppt" data-id="' + a.id + '">Изменить запись</button>';
   }
   foot += '<button class="btn" data-act="editCard" data-id="' + a.id + '">Что делали</button>';
   foot += '<button class="btn ghost" data-act="delAppt" data-id="' + a.id + '">Удалить запись</button>';
@@ -2987,9 +2987,13 @@ function formAppt(preClient){
   var opts = DB.clients.map(function(c){
     return '<option value="' + c.id + '"' + (c.id === preClient ? ' selected' : '') + '>' + esc(c.name) + '</option>';
   }).join('');
+  /* В списке только названия. Время и цена вынесены в свои поля: одна и та же
+     стрижка бывает и за 2500, и за 5000, и держать мастера в рамках прайса
+     нельзя. Из прайса берётся только начальное значение. */
   var sopts = DB.services.map(function(s){
-    return '<option value="' + s.id + '">' + esc(s.name) + ' · ' + dur(s.dur) + ' · ' + rub(s.price) + '</option>';
+    return '<option value="' + s.id + '">' + esc(s.name) + '</option>';
   }).join('');
+  var first = DB.services[0] || { dur:60, price:0 };
   var h =
     '<div class="field"><label class="lab">Клиент</label><select class="inp" id="f_client">' + opts + '</select></div>' +
     '<div class="field"><label class="lab">Процедура</label><select class="inp" id="f_service">' + sopts + '</select></div>' +
@@ -2997,25 +3001,66 @@ function formAppt(preClient){
       '<div class="field"><label class="lab">Дата</label><input class="inp" id="f_date" type="date" value="' + today() + '"></div>' +
       '<div class="field"><label class="lab">Время</label><input class="inp" id="f_time" type="time" value="10:00"></div>' +
     '</div>' +
+    '<div class="field"><label class="lab">Сколько идёт</label>' +
+      '<div class="two-col">' +
+        '<div style="position:relative"><input class="inp" id="f_h" inputmode="numeric" ' +
+          'value="' + Math.floor(first.dur / 60) + '" style="padding-right:52px">' +
+          '<span class="unit">часов</span></div>' +
+        '<div style="position:relative"><input class="inp" id="f_m" inputmode="numeric" ' +
+          'value="' + (first.dur % 60) + '" style="padding-right:52px">' +
+          '<span class="unit">минут</span></div>' +
+      '</div></div>' +
+    '<div class="field"><label class="lab">Стоимость, ₽</label>' +
+      '<input class="inp" id="f_price" inputmode="numeric" value="' + first.price + '"></div>' +
     '<div class="field"><label class="lab">Заметка</label><input class="inp" id="f_note" data-mode="text" placeholder="необязательно"></div>' +
-    '<div class="hintline">Длительность и стоимость подставятся из процедуры — их можно поправить потом в записи. ' +
-    'Сложное окрашивание идёт три-четыре часа: если запись наложится на предыдущую, кабинет предупредит.</div>';
+    '<div class="hintline">Время и стоимость подставились из прайса — поправьте под этот приём, ' +
+    'если он длиннее или дороже обычного. Если запись наложится на предыдущую, кабинет предупредит.</div>';
   openSheet('Новая запись', h,
     '<button class="btn primary" data-act="saveAppt">Сохранить запись</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+
+  /* сменили процедуру — время и цена подставляются заново, но только если
+     мастер их ещё не правил руками */
+  var touched = false;
+  ['f_h', 'f_m', 'f_price'].forEach(function(fid){
+    var el = $(fid); if(el) el.addEventListener('input', function(){ touched = true; });
+  });
+  var sel = $('f_service');
+  if(sel) sel.addEventListener('change', function(){
+    if(touched) return;
+    var s = svc(sel.value); if(!s) return;
+    $('f_h').value = Math.floor(s.dur / 60);
+    $('f_m').value = s.dur % 60;
+    $('f_price').value = s.price;
+  });
 }
 
+/* Правится вся запись целиком: и время приёма, и сколько он идёт, и сколько
+   стоит. Цена у одной и той же работы разная — от длины волос, от расхода
+   краски, от того, что мастер договорилась с клиентом. */
 function formMove(id){
   var a = apptById(id); if(!a) return;
   var h = '<div class="two-col">' +
-    '<div class="field"><label class="lab">Новая дата</label>' +
+    '<div class="field"><label class="lab">Дата</label>' +
       '<input class="inp" id="mv_date" type="date" value="' + a.date + '"></div>' +
-    '<div class="field"><label class="lab">Новое время</label>' +
+    '<div class="field"><label class="lab">Время</label>' +
       '<input class="inp" id="mv_time" type="time" value="' + a.time + '"></div></div>' +
-    '<div class="hintline">Сейчас: ' + shortDate(a.date) + ', ' + a.time + ', ' + dur(a.dur) +
-    '. После переноса отметка о подтверждении снимется — клиенту уходило другое время.</div>';
-  openSheet('Перенести запись', h,
-    '<button class="btn primary" data-act="saveMove" data-id="' + a.id + '">Перенести</button>' +
+    '<div class="field"><label class="lab">Сколько идёт</label>' +
+      '<div class="two-col">' +
+        '<div style="position:relative"><input class="inp" id="mv_h" inputmode="numeric" ' +
+          'value="' + Math.floor(a.dur / 60) + '" style="padding-right:52px">' +
+          '<span class="unit">часов</span></div>' +
+        '<div style="position:relative"><input class="inp" id="mv_m" inputmode="numeric" ' +
+          'value="' + (a.dur % 60) + '" style="padding-right:52px">' +
+          '<span class="unit">минут</span></div>' +
+      '</div></div>' +
+    '<div class="field"><label class="lab">Стоимость, ₽</label>' +
+      '<input class="inp" id="mv_price" inputmode="numeric" value="' + (a.price || 0) + '"></div>' +
+    '<div class="hintline">Сейчас записано: ' + shortDate(a.date) + ', ' + a.time + ', ' +
+    dur(a.dur) + ', ' + rub(a.price) + '. Если поменяете дату или время, отметка о ' +
+    'подтверждении снимется — клиенту уходило другое.</div>';
+  openSheet('Изменить запись', h,
+    '<button class="btn primary" data-act="saveMove" data-id="' + a.id + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
 }
 
@@ -3397,15 +3442,23 @@ function act(name, id){
       var am = apptById(id); if(!am) break;
       var nd = val('mv_date'), nt = val('mv_time');
       if(!nd || !nt){ toast('Укажите дату и время'); break; }
-      if(nd === am.date && nt === am.time){ closeSheet(); toast('Время не изменилось'); break; }
+      var mDur = (parseInt(val('mv_h'), 10) || 0) * 60 + (parseInt(val('mv_m'), 10) || 0);
+      if(mDur < 5){ toast('Впишите, сколько идёт приём'); break; }
+      var mPrice = parseInt(val('mv_price'), 10) || 0;
+      var moved = (nd !== am.date || nt !== am.time);
+      if(!moved && mDur === am.dur && mPrice === am.price){
+        closeSheet(); toast('Ничего не изменилось'); break;
+      }
       snapshot();
-      am.date = nd; am.time = nt;
-      /* перенос обнуляет отметки: клиенту уходило другое время */
-      am.sentConfirm = null; am.sentRemind = null;
+      am.date = nd; am.time = nt; am.dur = mDur; am.price = mPrice;
+      /* отметки снимаются только при переносе: клиенту уходило другое время.
+         Правка цены его не касается */
+      if(moved){ am.sentConfirm = null; am.sentRemind = null; }
       save(); closeSheet(); render();
       var wm = overlapWarn(am);
       if(wm) toast(wm, true);
-      else toast('Запись перенесена. Подтверждение нужно отправить заново');
+      else if(moved) toast('Запись перенесена. Подтверждение нужно отправить заново');
+      else toast('Запись изменена');
       break;
     }
     case 'addStock': formStock(); break;
@@ -3618,11 +3671,14 @@ function act(name, id){
     }
     case 'saveAppt': {
       var s2 = svc(val('f_service'));
+      var aDur = (parseInt(val('f_h'), 10) || 0) * 60 + (parseInt(val('f_m'), 10) || 0);
+      if(aDur < 5){ toast('Впишите, сколько идёт приём'); break; }
       snapshot();
       var newId = uid();
       var na = {
         id: newId, clientId: val('f_client'), serviceId: val('f_service'),
-        date: val('f_date'), time: val('f_time'), dur: s2.dur, price: s2.price,
+        date: val('f_date'), time: val('f_time'),
+        dur: aDur, price: parseInt(val('f_price'), 10) || 0,
         status:'plan', card:{}, rootsDays:null, toneDays:null, complaint:'', redo:false,
         note: val('f_note'), sentConfirm:null, sentRemind:null
       };
