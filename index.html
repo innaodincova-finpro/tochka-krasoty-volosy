@@ -210,6 +210,9 @@ a.btn.primary{color:var(--on-stop)}
 .inp{width:100%;min-width:0;max-width:100%;min-height:48px;border:1px solid var(--line);
      border-radius:10px;background:var(--card);padding:12px 13px;font-size:16px}
 textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
+/* подпись единицы прямо в поле: «4» и рядом бледное «часов» */
+.unit{position:absolute;right:13px;top:50%;transform:translateY(-50%);
+      font-size:13px;color:var(--mut);pointer-events:none}
 /* minmax(0,1fr), а не 1fr: поля с датой и временем на iPhone требуют себе
    больше места, чем есть в колонке, и без этого вылезают за край экрана */
 .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
@@ -1824,29 +1827,64 @@ function formService(id){
   var s = id ? DB.services.filter(function(x){ return x.id === id; })[0] : null;
   if(id && !s) return;
   var cur = s || { name:'', dur:60, price:0, kind:'cut' };
-  var opts = ['cut','color','care'].map(function(k){
-    return '<option value="' + k + '"' + (cur.kind === k ? ' selected' : '') + '>' +
-           SRV_KIND[k] + '</option>';
+  /* Название процедуры мастер пишет какое угодно. А этот список — не список
+     услуг, а выбор того, что кабинет будет отсчитывать после работы. Поэтому
+     он и не пополняется: считать кабинет умеет ровно эти две вещи. */
+  var COUNTS = [['color', 'когда отрастут корни'],
+                ['cut',   'когда пора стричься снова'],
+                ['care',  'ничего не отсчитывать']];
+  var opts = COUNTS.map(function(k){
+    return '<option value="' + k[0] + '"' + (cur.kind === k[0] ? ' selected' : '') + '>' +
+           k[1] + '</option>';
   }).join('');
+
+  /* Часы и минуты отдельно: сложное окрашивание идёт четыре часа, и умножать
+     их на шестьдесят в уме мастер не должен. */
+  var hh = Math.floor(cur.dur / 60), mm = cur.dur % 60;
 
   var h =
     '<div class="field"><label class="lab">Название</label>' +
-      '<input class="inp" id="sv_name" value="' + esc(cur.name) + '" placeholder="Окрашивание корней"></div>' +
-    '<div class="two-col">' +
-      '<div class="field"><label class="lab">Длительность, минут</label>' +
-        '<input class="inp" id="sv_dur" inputmode="numeric" value="' + cur.dur + '"></div>' +
-      '<div class="field"><label class="lab">Цена, ₽</label>' +
-        '<input class="inp" id="sv_price" inputmode="numeric" value="' + cur.price + '"></div>' +
-    '</div>' +
-    '<div class="field"><label class="lab">Род работы</label>' +
-      '<select class="inp" id="sv_kind">' + opts + '</select></div>' +
-    '<div class="hintline">Длительность и цена подставятся в новую запись. ' +
+      '<input class="inp" id="sv_name" value="' + esc(cur.name) + '" ' +
+      'placeholder="Например: Наращивание волос"></div>' +
+    '<div class="field"><label class="lab">Сколько идёт</label>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<div style="position:relative">' +
+          '<input class="inp" id="sv_h" inputmode="numeric" value="' + hh + '" ' +
+          'style="padding-right:52px">' +
+          '<span class="unit">часов</span></div>' +
+        '<div style="position:relative">' +
+          '<input class="inp" id="sv_m" inputmode="numeric" value="' + mm + '" ' +
+          'style="padding-right:52px">' +
+          '<span class="unit">минут</span></div>' +
+      '</div>' +
+      '<div class="hintline" id="sv_total">' + esc(dur(cur.dur)) + '</div></div>' +
+    '<div class="field"><label class="lab">Цена, ₽</label>' +
+      '<input class="inp" id="sv_price" inputmode="numeric" value="' + cur.price + '"></div>' +
+    '<div class="field"><label class="lab">Что отсчитывать после этой работы</label>' +
+      '<select class="inp" id="sv_kind">' + opts + '</select>' +
+      '<div class="hintline">Это не список услуг: название вы пишете любое. Здесь кабинет ' +
+      'спрашивает, от чего вести срок до следующего визита.</div></div>' +
+    '<div class="hintline">Время и цена подставятся в новую запись. ' +
     'В уже сделанных записях останется то, что стояло на момент записи.</div>';
 
   var foot = '<button class="btn primary" data-act="saveService" data-id="' + (id || '') + '">Сохранить</button>';
   if(id) foot += '<button class="btn" data-act="delService" data-id="' + id + '">Удалить</button>';
   foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
   openSheet(id ? 'Процедура' : 'Новая процедура', h, foot);
+  /* подпись под полями пересчитывается на ходу — видно, что получилось */
+  ['sv_h', 'sv_m'].forEach(function(fid){
+    var el = $(fid); if(!el) return;
+    el.addEventListener('input', function(){
+      var t = $('sv_total'); if(t) t.textContent = dur(svMinutes()) || '0 мин';
+    });
+  });
+}
+
+/* Часы и минуты складываются в минуты — так длительность хранится везде. */
+function svMinutes(){
+  var h = parseInt(val('sv_h'), 10) || 0;
+  var m = parseInt(val('sv_m'), 10) || 0;
+  return h * 60 + m;
 }
 
 function pageMoney(){
@@ -3621,8 +3659,8 @@ function act(name, id){
     case 'saveService': {
       var svName = val('sv_name').trim();
       if(!svName){ toast('Впишите название'); break; }
-      var svDur = parseInt(val('sv_dur'), 10) || 0;
-      if(svDur < 5){ toast('Длительность — не меньше пяти минут'); break; }
+      var svDur = svMinutes();
+      if(svDur < 5){ toast('Впишите, сколько идёт работа — хотя бы пять минут'); break; }
       snapshot();
       var svFields = { name:svName, dur:svDur,
                        price:parseInt(val('sv_price'), 10) || 0, kind:val('sv_kind') };
