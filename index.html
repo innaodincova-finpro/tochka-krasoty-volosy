@@ -54,6 +54,13 @@ a{color:var(--stop)}
      border-bottom:1px solid var(--p-line);
      padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
 .top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+/* знак слева от названия — тот же, что на ярлыке телефона */
+.top-left{display:flex;align-items:flex-start;gap:11px;min-width:0}
+.top-mark{flex:none;width:42px;height:42px;border-radius:11px;margin-top:2px;
+          display:flex;align-items:center;justify-content:center;color:#DDB77C;
+          background:linear-gradient(160deg,#33587D,#22466A 52%,#152F4C);
+          box-shadow:0 2px 6px rgba(6,18,32,.28), inset 0 1px 0 rgba(255,255,255,.16)}
+.top-mark svg{display:block}
 .top-name{font-size:11.5px;color:var(--p-mut);letter-spacing:.04em}
 .top-title{font-size:19px;font-weight:600;margin-top:3px;line-height:1.2}
 .top-sub{font-size:12.5px;color:var(--p-sub);margin-top:6px}
@@ -80,8 +87,10 @@ a{color:var(--stop)}
         display:grid;grid-template-columns:38px 1fr 26px;gap:11px;align-items:center}
 /* тот же знак, что и на настоящем ярлыке: на полоске он размером
    с ноготь, и буквы там не читаются — остаются одни ножницы */
-.ab-ic{width:38px;height:38px;border-radius:10px;background:var(--panel);
-       display:flex;align-items:center;justify-content:center;color:var(--p-ink)}
+.ab-ic{width:38px;height:38px;border-radius:10px;
+       display:flex;align-items:center;justify-content:center;color:#DDB77C;
+       background:linear-gradient(160deg,#33587D,#22466A 52%,#152F4C);
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
 .ab-ic svg{display:block}
 .ab-t{font-size:13px;font-weight:600}
 .ab-x{background:none;border:none;color:var(--mut);font-size:17px;height:38px}
@@ -280,10 +289,15 @@ body.deep .app{transform:scale(.925) translateY(10px);border-radius:14px;
 <div class="app">
   <header class="top">
     <div class="top-row">
-      <div>
-        <div class="top-name">Точка красоты. Волосы</div>
-        <div class="top-title" id="topTitle">Сегодня</div>
-        <div class="top-sub" id="topSub"></div>
+      <div class="top-left">
+        <!-- знак с ярлыка: кабинет узнаётся с первого взгляда,
+             даже когда открыт не с иконки, а по ссылке -->
+        <div class="top-mark" id="topMark" aria-hidden="true"></div>
+        <div>
+          <div class="top-name">Точка красоты. Волосы</div>
+          <div class="top-title" id="topTitle">Сегодня</div>
+          <div class="top-sub" id="topSub"></div>
+        </div>
       </div>
       <div class="top-acts">
         <button class="tbtn" id="btnUndo" title="Отменить" aria-label="Отменить">
@@ -435,7 +449,8 @@ function days(n){
 var UNIT_FORMS = {
   'туба':['туба','тубы','туб'], 'флакон':['флакон','флакона','флаконов'],
   'банка':['банка','банки','банок'], 'рулон':['рулон','рулона','рулонов'],
-  'упаковка':['упаковка','упаковки','упаковок'], 'штука':['штука','штуки','штук']
+  'упаковка':['упаковка','упаковки','упаковок'], 'штука':['штука','штуки','штук'],
+  'запись':['запись','записи','записей'], 'заметка':['заметка','заметки','заметок']
 };
 function unitOf(n, unit){
   var f = UNIT_FORMS[unit];
@@ -3016,21 +3031,8 @@ function formClient(id){
       '<input class="inp" id="cl_phone" data-mode="phone" value="' +
         esc(c.phone || (id ? '' : '+7 ')) + '">' +
       '<div class="hintline">Микрофон — на клавиатуре. Цифры — кнопка «123».</div></div>' +
-    /* Сроки при заведении клиента не спрашиваются: мастер их ещё не знает,
-       а кабинет посчитает сам, как только клиент придёт во второй раз.
-       У заведённого клиента поля есть — на случай, когда мастер знает лучше. */
-    (id
-      ? '<div class="two-col">' +
-          '<div class="field"><label class="lab">Корни обновляет раз в столько дней</label>' +
-            '<input class="inp" id="cl_roots" inputmode="numeric" value="' + (c.cycleRoots || '') +
-            '" placeholder="' + cycleOf(c, 'color').days + '"></div>' +
-          '<div class="field"><label class="lab">Стрижётся раз в столько дней</label>' +
-            '<input class="inp" id="cl_cut" inputmode="numeric" value="' + (c.cycleCut || '') +
-            '" placeholder="' + cycleOf(c, 'cut').days + '"></div>' +
-        '</div>' +
-        '<div class="hintline">Оставьте пустыми — кабинет посчитает сроки по её приёмам. ' +
-        'Вписанное число главнее посчитанного.</div>'
-      : '') +
+    /* Сроков в карточке нет вовсе: мастер их не знает и заполнять не станет,
+       а кабинет считает их сам по приёмам клиента. */
     '<div class="two-col" style="margin-top:12px">' +
       '<div class="field"><label class="lab">Куда писать</label><select class="inp" id="cl_link">' +
         '<option value="whatsapp"' + (c.link === 'whatsapp' ? ' selected' : '') + '>WhatsApp</option>' +
@@ -3044,9 +3046,10 @@ function formClient(id){
     'Пока даты нет, кабинет напомнит о ней в «Нужно отметить».</div>' +
     '<div class="field" style="margin-top:12px"><label class="lab">Заметка</label>' +
       '<input class="inp" id="cl_note" data-mode="text" value="' + esc(c.note || '') + '" placeholder="седина, пористость, что не любит"></div>';
-  openSheet(id ? 'Изменить клиента' : 'Новый клиент', h,
-    '<button class="btn primary" data-act="saveClient" data-id="' + (id || '') + '">Сохранить</button>' +
-    '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+  var foot = '<button class="btn primary" data-act="saveClient" data-id="' + (id || '') + '">Сохранить</button>';
+  if(id) foot += '<button class="btn" data-act="askDelClient" data-id="' + id + '">Удалить клиента</button>';
+  foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
+  openSheet(id ? 'Изменить клиента' : 'Новый клиент', h, foot);
 }
 
 function formAllergy(id){
@@ -3637,9 +3640,6 @@ function act(name, id){
       if(!name2){ toast('Впишите имя'); break; }
       var fields = {
         name:name2, phone:tidyPhone(val('cl_phone')),
-        /* пусто значит «считай сам»: null, а не число по умолчанию */
-        cycleRoots: parseInt(val('cl_roots'), 10) || null,
-        cycleCut: parseInt(val('cl_cut'), 10) || null,
         link: val('cl_link'), note: val('cl_note'),
         allergy: val('cl_allergy') || null
       };
@@ -3648,6 +3648,8 @@ function act(name, id){
         for(var kk in fields) if(fields.hasOwnProperty(kk)) c4[kk] = fields[kk];
       } else {
         fields.id = uid();
+        /* null значит «считай сам»: сроки кабинет выведет по приёмам */
+        fields.cycleRoots = null; fields.cycleCut = null;
         DB.clients.push(fields);
       }
       save(); closeSheet(); render(); toast('Сохранено');
@@ -3678,6 +3680,39 @@ function act(name, id){
       DB.services = DB.services.filter(function(x){ return x.id !== id; });
       save(); closeSheet(); pageServices(); render();
       toast('Процедура убрана, можно вернуть стрелкой наверху');
+      break;
+    }
+
+    /* Удаление клиента спрашивается отдельно и с числами: вместе с ним
+       уходят его записи и заметки, и мастер должен видеть, сколько именно. */
+    case 'askDelClient': {
+      var dc = cli(id);
+      var dcA = DB.appts.filter(function(a){ return a.clientId === id; }).length;
+      var dcN = DB.notes.filter(function(n){ return n.clientId === id; }).length;
+      var parts = [];
+      if(dcA) parts.push(dcA + ' ' + unitOf(dcA, 'запись'));
+      if(dcN) parts.push(dcN + ' ' + unitOf(dcN, 'заметка'));
+      var body = '<div class="note">Удалить клиента <b>' + esc(dc.name) + '</b>?</div>' +
+        '<div class="hintline">' +
+        (parts.length
+          ? 'Вместе с ним уйдут ' + parts.join(' и ') + '. Выручка за прошлые приёмы ' +
+            'из отчётов тоже пропадёт.'
+          : 'Записей и заметок у него нет — уйдёт только карточка.') +
+        ' Вернуть можно стрелкой в шапке кабинета.</div>';
+      openSheet('Удалить клиента', body,
+        '<button class="btn" data-act="delClient" data-id="' + id + '">Да, удалить</button>' +
+        '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
+      break;
+    }
+
+    case 'delClient': {
+      snapshot();
+      var goneName = cli(id).name;
+      DB.clients = DB.clients.filter(function(c){ return c.id !== id; });
+      DB.appts   = DB.appts.filter(function(a){ return a.clientId !== id; });
+      DB.notes   = DB.notes.filter(function(n){ return n.clientId !== id; });
+      save(); closeSheet(); setTab('clients'); render();
+      toast(goneName + ' удалена, можно вернуть стрелкой наверху');
       break;
     }
 
@@ -3821,6 +3856,9 @@ document.addEventListener('keydown', function(e){
   if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !typing){ e.preventDefault(); undo(); }
   if(e.key === 'Escape') closeSheet();
 });
+
+/* знак в шапке рисуется один раз при запуске */
+(function(){ var m = $('topMark'); if(m) m.innerHTML = scissorsMark(26); })();
 
 load();
 render();
