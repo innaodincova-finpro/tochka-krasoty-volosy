@@ -492,7 +492,8 @@ var UNIT_FORMS = {
   'туба':['туба','тубы','туб'], 'флакон':['флакон','флакона','флаконов'],
   'банка':['банка','банки','банок'], 'рулон':['рулон','рулона','рулонов'],
   'упаковка':['упаковка','упаковки','упаковок'], 'штука':['штука','штуки','штук'],
-  'запись':['запись','записи','записей'], 'заметка':['заметка','заметки','заметок']
+  'запись':['запись','записи','записей'], 'заметка':['заметка','заметки','заметок'],
+  'изменение':['изменение','изменения','изменений']
 };
 function unitOf(n, unit){
   var f = UNIT_FORMS[unit];
@@ -776,10 +777,24 @@ function load(){
     document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
     return;
   }
-  try{
-    var raw = localStorage.getItem(KEY);
-    if(raw){ DB = JSON.parse(raw); }
-  }catch(e){ DB = null; }
+  var raw = null;
+  try{ raw = localStorage.getItem(KEY); }catch(e){}
+  try{ if(raw){ DB = JSON.parse(raw); } }catch(e){ DB = null; }
+
+  /* Запись есть, но не читается. Молча открыться как новый кабинет нельзя:
+     человек нажмёт «Начать с чистого» и затрёт то, что ещё можно спасти.
+     Откладываем испорченное в сторону и пробуем запасную копию. */
+  if(raw && (!DB || !DB.services)){
+    BROKEN_FOUND = true;
+    try{ localStorage.setItem(KEY_BROKEN, raw); }catch(e){}
+    try{
+      var spare = localStorage.getItem(KEY_SPARE);
+      if(spare){
+        var alt = JSON.parse(spare);
+        if(alt && alt.services) DB = alt;
+      }
+    }catch(e){ DB = null; }
+  }
   if(!DB || !DB.services){ DB = blank(); NEED_START = true; }
   if(!DB.settings) DB.settings = { theme:'light', installHidden:false, workStart:'09:00', workEnd:'21:00', lastBackup:null };
   if(DB.settings.place == null) DB.settings.place = '';
@@ -814,6 +829,7 @@ function load(){
     if(!a.svcKind) a.svcKind = (s && s.kind) || 'care';
   });
   MY_STAMP = DB.stamp || 0;
+  if(DB.settings.changes === undefined) DB.settings.changes = 0;
   tidyStatuses();
   document.documentElement.setAttribute('data-theme', DB.settings.theme || 'light');
 }
@@ -834,6 +850,85 @@ function tidyStatuses(){
 }
 
 var SAVE_OK = true;
+
+/* ================= сохранность записей =================
+
+   Записи лежат в памяти браузера этого телефона, и это единственное место,
+   где они есть. Поэтому вокруг записи выстроено четыре меры.
+
+   1. ЗАПАСНАЯ КОПИЯ. Кроме основной записи кабинет держит рядом вторую,
+      предыдущую. Если основная однажды не прочитается, кабинет раньше молча
+      открывался как новый — и первое же нажатие «Начать с чистого кабинета»
+      затирало то, что ещё можно было спасти. Теперь он говорит об этом прямо
+      и предлагает вернуться к запасной.
+
+   2. СЧЁТЧИК ИЗМЕНЕНИЙ. Напоминание о копии в файл раньше приходило раз в
+      неделю независимо от того, сколько за неё сделано. Теперь считаются сами
+      изменения: неделя без работы напоминания не требует, а двадцать записей
+      за день — требует.
+
+   3. ВТОРАЯ ВКЛАДКА. Кабинет с иконки и забытая вкладка Safari писали поверх
+      друг друга целиком. Теперь вкладки договариваются: работает та, где
+      человек, остальные переходят в «только просмотр» и не сохраняют ничего,
+      пока в них не нажмут «Работать здесь».
+
+   4. ПОСТОЯННОЕ ХРАНИЛИЩЕ. У браузера можно попросить не вычищать данные
+      этого сайта, когда в телефоне кончается место. Просьбу выполняют не все
+      браузеры и не всегда — поэтому она добавка к копии, а не замена ей.
+
+   Автоматической копии в файл на диске — как в кабинете репетитора — здесь
+   быть не может: её даёт возможность Chrome «дать сайту доступ к файлу», а в
+   Safari на айфоне такой возможности нет. Копия в файл остаётся ручной. */
+
+var KEY_SPARE = KEY + '-zapas';       /* запасная копия предыдущего вида */
+var KEY_BROKEN = KEY + '-ne-chitaetsya';  /* нечитаемая запись, отложенная на разбор */
+var BROKEN_FOUND = false;             /* при загрузке нашлась испорченная запись */
+var READONLY = false;                 /* эта вкладка — «только просмотр» */
+var CHAN = null;
+
+/* Каждая вкладка представляется своим номером. Кто поздоровался последним,
+   тот и работает: человек всегда в том окне, которое только что открыл. */
+var TAB_ID = Math.random().toString(36).slice(2);
+
+function startChannel(){
+  if(DEMO || typeof BroadcastChannel === 'undefined') return;
+  try{
+    CHAN = new BroadcastChannel('tochka-krasoty-volosy');
+    CHAN.onmessage = function(e){
+      if(!e.data || e.data.from === TAB_ID) return;
+      if(e.data.type === 'hello'){ goReadonly(); }
+    };
+    CHAN.postMessage({ type:'hello', from:TAB_ID });
+  }catch(e){}
+}
+
+function goReadonly(){
+  if(READONLY) return;
+  READONLY = true;
+  paintSaved();
+  toast('Кабинет открыт ещё где-то — здесь только просмотр, чтобы записи не затёрли ' +
+        'друг друга. Нажмите «Работать здесь», если продолжать хотите тут', true);
+}
+
+function takeOver(){
+  READONLY = false;
+  /* перечитываем: пока мы стояли, в другом окне могли записать */
+  load();
+  if(CHAN){ try{ CHAN.postMessage({ type:'hello', from:TAB_ID }); }catch(e){} }
+  render();
+  toast('Работаем здесь. В остальных окнах кабинет перешёл в просмотр');
+}
+
+/* Сколько изменений накопилось с последней копии в файл */
+function changesSince(){ return (DB.settings && DB.settings.changes) || 0; }
+
+function askPersist(){
+  /* просим браузер не вычищать данные сайта при нехватке места.
+     Отказ — не беда: копия в файл всё равно остаётся главной защитой */
+  try{
+    if(navigator.storage && navigator.storage.persist) navigator.storage.persist();
+  }catch(e){}
+}
 /* Кабинет может быть открыт дважды: иконкой на экране и забытой вкладкой
    в Safari. Оба окна пишут всю базу целиком, поэтому второе молча затирало
    то, что записали в первом. Метка времени в самой базе позволяет это
@@ -862,7 +957,13 @@ function save(silent){
     toast('Кабинет открыт ещё где-то, и там записали своё. Закройте лишнюю вкладку ' +
           'и перезагрузите эту, иначе записи затрут друг друга', true);
   }
+  if(READONLY) return;                /* в режиме просмотра не пишем ничего */
   try{
+    /* Прежняя запись уезжает в запас ДО того, как её перезапишут: если новая
+       окажется испорченной, будет откуда взяться. */
+    var prev = localStorage.getItem(KEY);
+    if(prev) localStorage.setItem(KEY_SPARE, prev);
+    if(!silent) DB.settings.changes = changesSince() + 1;
     DB.stamp = MY_STAMP = Date.now();
     localStorage.setItem(KEY, JSON.stringify(DB));
     SAVED_AT = new Date();
@@ -1039,6 +1140,12 @@ function paintSaved(){
   }
   if(!SAVE_OK){
     el.textContent = 'НЕ СОХРАНЯЕТСЯ — записи пропадут при перезагрузке';
+    el.classList.add('bad');
+    return;
+  }
+  if(READONLY){
+    /* здесь только смотрят: писать нельзя, иначе два окна затрут друг друга */
+    el.textContent = 'только просмотр — кабинет открыт в другом окне';
     el.classList.add('bad');
     return;
   }
@@ -1227,21 +1334,61 @@ function dayRibbon(st, nextId, emptyText){
 /* Копию просим раз в неделю, и только когда есть что терять. «Позже»
    убирает напоминание на три дня: каждый день просить — значит приучить
    закрывать не читая. */
+/* Напоминание о копии считает не дни, а работу. Неделя отпуска копии не
+   требует, а двадцать записей за один день — требует. Порог в восемь
+   изменений — это примерно рабочий день: приём отметить, оплату поставить,
+   формулу записать, пару человек занести. */
+var BACKUP_AFTER = 8;
+
 function backupDue(){
   if(DEMO) return false;
   if(!DB.clients.length && !DB.appts.length) return false;
-  var lb = DB.settings.lastBackup;
-  if(lb && daysBetween(lb, today()) < 7) return false;
   var sn = DB.settings.backupSnoozed;
-  if(sn && daysBetween(sn, today()) < 3) return false;
-  return true;
+  if(sn && daysBetween(sn, today()) < 1) return false;
+  if(changesSince() >= BACKUP_AFTER) return true;
+  /* копии не делали никогда, а работа уже идёт */
+  if(!DB.settings.lastBackup && (DB.clients.length || DB.appts.length)) return true;
+  return false;
 }
+/* Эта вкладка стоит в стороне, пока работают в другом окне */
+function readonlyBar(){
+  return '<div class="addbar demo" style="border-color:var(--warn)">' +
+    '<div class="ab-ic" aria-hidden="true">' + scissorsMark(27) + '</div>' +
+    '<div><div class="ab-t">Только просмотр</div>' +
+    '<div class="muted">Кабинет открыт ещё в одном окне, и работают там. Здесь ничего ' +
+      'не сохраняется — так два окна не затирают записи друг друга.</div>' +
+    '<div class="btns" style="margin-top:10px">' +
+      '<button class="btn primary" data-act="takeOver">Работать здесь</button>' +
+    '</div></div></div>';
+}
+
+/* Запись не прочиталась. Говорим прямо и не даём затереть остаток молча. */
+function brokenBar(){
+  var spare = false;
+  try{ spare = !!localStorage.getItem(KEY_SPARE); }catch(e){}
+  return '<div class="addbar demo" style="border-color:var(--warn)">' +
+    '<div class="ab-ic" aria-hidden="true">' + scissorsMark(27) + '</div>' +
+    '<div><div class="ab-t">Прежние записи не прочитались</div>' +
+    '<div class="muted">' + (spare
+      ? 'Кабинет открыт из запасной копии — она чуть старше и последних правок в ней ' +
+        'может не быть. Испорченная запись отложена и не стёрта.'
+      : 'Запасной копии рядом не оказалось. Испорченная запись отложена и не стёрта — ' +
+        'если у вас есть копия в файле, загрузите её.') + '</div>' +
+    '<div class="btns" style="margin-top:10px">' +
+      '<button class="btn primary" data-act="doRestore">Загрузить копию из файла</button>' +
+      '<button class="btn" data-act="brokenOk">Понятно, работать дальше</button>' +
+    '</div></div></div>';
+}
+
 function backupBar(){
   var lb = DB.settings.lastBackup;
   return '<div class="addbar">' +
     '<div class="ab-ic" aria-hidden="true">' + scissorsMark(27) + '</div>' +
-    '<div><div class="ab-t">' + (lb ? 'Копия сделана ' + shortDate(lb) : 'Копию ещё не делали') + '</div>' +
-    '<div class="muted">Записи и формулы лежат только в этом телефоне. Файл копии уйдёт ' +
+    '<div><div class="ab-t">' + (lb
+        ? 'С последней копии: ' + changesSince() + ' ' + unitOf(changesSince(), 'изменение')
+        : 'Копию ещё не делали') + '</div>' +
+    '<div class="muted">' + (lb ? 'Копия сделана ' + shortDate(lb) + '. ' : '') +
+      'Записи и формулы лежат только в этом телефоне. Файл копии уйдёт ' +
       'в загрузки — положите его в облачную папку.</div>' +
     '<div class="btns two" style="margin-top:10px">' +
       '<button class="btn primary" data-act="doBackup">Сохранить копию</button>' +
@@ -1272,6 +1419,8 @@ function renderToday(){
          '</div>';
   }
 
+  if(READONLY) h += readonlyBar();
+  if(BROKEN_FOUND) h += brokenBar();
   if(backupDue()) h += backupBar();
 
   /* идущий приём ищется по всей базе, а не только среди сегодняшних: он мог
@@ -3658,7 +3807,9 @@ function doBackup(){
     toast('Файл копии в загрузках телефона — теперь вы знаете дорогу', true);
     return;
   }
-  snapshot(); DB.settings.lastBackup = today(); DB.settings.backupSnoozed = null; save();
+  snapshot(); DB.settings.lastBackup = today(); DB.settings.backupSnoozed = null;
+  DB.settings.changes = 0;                 /* счёт начинается заново */
+  save(true);
   toast('Копия сохранена в загрузки телефона');
   closeSheet(); render();
 }
@@ -4023,6 +4174,8 @@ function act(name, id){
       break;
 
     case 'doBackup': doBackup(); break;
+    case 'takeOver': takeOver(); break;
+    case 'brokenOk': BROKEN_FOUND = false; render(); break;
     case 'snoozeBackup':
       DB.settings.backupSnoozed = today(); save(true); render();
       toast('Напомню через три дня. Сохранить копию можно в «Ещё»');
@@ -4445,6 +4598,8 @@ document.addEventListener('keydown', function(e){
 (function(){ var m = $('topMark'); if(m) m.innerHTML = scissorsMark(26); })();
 
 load();
+askPersist();      /* просим браузер не вычищать записи при нехватке места */
+startChannel();    /* договариваемся с другими открытыми окнами кабинета */
 render();
 sheetDrag();
 setInterval(function(){ if(TAB === 'today') render(); }, 60000);
