@@ -227,6 +227,12 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .two-col>*{min-width:0}
 .hintline{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.4}
+/* «Запишется так: …» — мастер видит результат, пока говорит.
+   Пустая строка места не занимает, поэтому форма не прыгает */
+.prevline{font-size:12px;line-height:1.4;margin-top:5px;color:var(--ok)}
+.prevline:empty{display:none}
+.prevline.on{background:rgba(75,127,98,.10);border:1px solid rgba(75,127,98,.30);
+             border-radius:8px;padding:6px 9px}
 /* строка занятости под временем: зелёная — свободно, охра — накладка */
 /* название материала — кнопка на всю ширину строки, но выглядит как текст */
 .stock-t{background:none;border:none;padding:0;text-align:left;width:100%;color:inherit}
@@ -1654,8 +1660,9 @@ function voiceHint(forText){
     return 'Печатайте или диктуйте микрофоном на клавиатуре. Каждый кусок между паузами ' +
            'встанет на свою строку. «Точка» здесь означает точку в тоне: «семь точка один».';
   }
-  return 'Печатайте или диктуйте микрофоном на клавиатуре. Точки, запятые и большие буквы ' +
-         'кабинет расставит сам, как только вы договорите.';
+  return 'Печатайте или диктуйте микрофоном на клавиатуре. Пока говорите, под полем видно ' +
+         'строку «Запишется так» — это готовый вид: числа цифрами, марка краски латиницей, ' +
+         'знаки на местах. Он встанет в поле, как только вы из него выйдете.';
 }
 
 /* ================= паузы при диктовке с клавиатуры =================
@@ -1693,19 +1700,28 @@ function watchDictation(area){
   area.dataset.watched = '1';
   dictReset(area.value);
 
+  /* строка «Запишется так: …» заводится один раз, сразу под полем */
+  if(area.parentNode && !area.parentNode.querySelector('.prevline')){
+    var box = document.createElement('div');
+    box.className = 'prevline';
+    if(area.nextSibling) area.parentNode.insertBefore(box, area.nextSibling);
+    else area.parentNode.appendChild(box);
+  }
+
   /* вернулись в поле — счёт пауз начинается заново, чужие отметки не в счёт */
-  area.addEventListener('focus', function(){ dictReset(area.value); });
+  area.addEventListener('focus', function(){ dictReset(area.value); showPreview(area); });
 
   area.addEventListener('input', function(){
     var now = Date.now(), val = area.value;
     var grew = val.length > DICT_PREV.length && val.indexOf(DICT_PREV) === 0;
-    if(!grew){ dictReset(val); return; }   /* правка руками — отметки больше не верны */
+    if(!grew){ dictReset(val); showPreview(area); return; }
     if(DICT_LAST && now - DICT_LAST > DICT_GAP && DICT_PREV.trim()){
       DICT_MARKS.push(DICT_PREV.replace(/\s+$/, '').length);
     }
     DICT_LAST = now;
     DICT_PREV = val;
-
+    /* поле не трогаем, только показываем, каким станет текст */
+    showPreview(area);
   });
 
   /* ушли из поля — приводим текст в порядок сразу, ждать нечего */
@@ -1821,31 +1837,44 @@ function toneDots(s){
     });
 }
 
+/* Каким текст станет, когда мастер выйдет из поля. Само поле не трогает:
+   пока палец в поле, телефон держит там свою диктовку, и переписывать
+   значение нельзя — вставится второй раз. Поэтому один и тот же расчёт
+   служит и для показа, и для правки. */
+function tidyValue(area){
+  if(!area || !area.value.trim()) return '';
+  var mode = area.getAttribute('data-mode');
+
+  if(mode === 'phone') return tidyPhone(area.value);
+  /* название материала: числа цифрами, тон через точку, знаков не ставим */
+  if(mode === 'name')  return tidyName(numsInText(area.value));
+  /* формулу в цифры не переводим: её разбирает свой разбор, и «семь точка
+     один» он понимает лучше, чем «7 точка 1». А бренд латиницей ставим:
+     разбор одинаково понимает и «эстель», и «Estel». */
+  if(mode === 'formula') return punctuate(brandLatin(area.value), false);
+  return punctuate(brandLatin(toneDots(numsInText(area.value))), true);
+}
+
+/* Строка под полем: «Запишется так: …». Мастер видит результат сразу,
+   пока говорит, а не после того, как выйдет из поля. */
+function showPreview(area){
+  var box = area && area.parentNode && area.parentNode.querySelector('.prevline');
+  if(!box) return;
+  var now = tidyValue(area);
+  if(!now || now === area.value){ box.textContent = ''; box.className = 'prevline'; return; }
+  box.textContent = 'Запишется так: ' + now.replace(/\n/g, ' / ');
+  box.className = 'prevline on';
+}
+
 /* Приведение поля в порядок — молча, без сообщений, чтобы не мельтешить. */
 function punctSilent(area){
   if(!area || !area.value.trim()) return;
-  var mode = area.getAttribute('data-mode');
-  var now;
-
-  if(mode === 'phone'){
-    now = tidyPhone(area.value);
-    /* «+7», которое стоит подсказкой, стирать нельзя: мастер только начал */
-    if(!now) return;
-  } else if(mode === 'name'){
-    /* название материала: числа цифрами, тон через точку, знаков не ставим */
-    now = tidyName(numsInText(area.value));
-  } else if(mode === 'formula'){
-    /* формулу в цифры не переводим: её разбирает свой разбор, и «семь точка
-       один» он понимает лучше, чем «7 точка 1». А бренд латиницей ставим:
-       разбор одинаково понимает и «эстель», и «Estel». */
-    now = punctuate(brandLatin(area.value), false);
-  } else {
-    now = punctuate(brandLatin(toneDots(numsInText(area.value))), true);
-  }
-
+  var now = tidyValue(area);
+  /* «+7», которое стоит подсказкой, стирать нельзя: мастер только начал */
   if(!now || now === area.value) return;
   area.value = now;
   dictReset(now);
+  showPreview(area);
   try{ area.setSelectionRange(now.length, now.length); }catch(e){}
 }
 
@@ -2753,15 +2782,33 @@ var ANCHORS = [
   ['повреждение','complaintDamage'], ['ломается','complaintDamage'], ['сожгли','complaintDamage'],
   ['переделка','redo'], ['переделки','redo'], ['переделок','redo'],
   ['переделывала','redo'], ['переделали','redo'], ['переделала','redo'],
-  ['estel','brand'], ['эстель','brand'], ['wella','brand'], ['велла','brand'],
+  ['estel','brand'], ['estelle','brand'], ['эстель','brand'],
+  ['wella','brand'], ['vella','brand'], ['велла','brand'],
   ['schwarzkopf','brand'], ['шварцкопф','brand'], ['matrix','brand'], ['матрикс','brand'],
-  ['kapous','brand'], ['капус','brand'], ['loreal','brand'], ['лореаль','brand'], ['лореал','brand']
+  ['kapous','brand'], ['капус','brand'], ['loreal','brand'], ['лореаль','brand'], ['лореал','brand'],
+  ['ollin','brand'], ['оллин','brand'], ['concept','brand'], ['концепт','brand'],
+  ['londa','brand'], ['лонда','brand'], ['igora','brand'], ['игора','brand']
 ].sort(function(a, b){ return b[0].split(' ').length - a[0].split(' ').length; });
 
+/* Телефон часто сам пишет марку латиницей — и пишет её на свой лад:
+   «Vella», «Estelle», «Loreal». Это та же краска, поэтому все ходовые
+   написания сведены к одному правильному — тому, что напечатано на тубе. */
 var BRAND_OF = {
-  'estel':'Estel','эстель':'Estel','wella':'Wella','велла':'Wella',
-  'schwarzkopf':'Schwarzkopf','шварцкопф':'Schwarzkopf','matrix':'Matrix','матрикс':'Matrix',
-  'kapous':'Kapous','капус':'Kapous','loreal':'L’Oreal','лореаль':'L’Oreal','лореал':'L’Oreal'
+  'estel':'Estel','estelle':'Estel','estell':'Estel','эстель':'Estel','эстел':'Estel',
+  'wella':'Wella','vella':'Wella','vela':'Wella','wela':'Wella',
+  'велла':'Wella','вела':'Wella','уэлла':'Wella',
+  'schwarzkopf':'Schwarzkopf','shwarzkopf':'Schwarzkopf','schwarzkopff':'Schwarzkopf',
+  'шварцкопф':'Schwarzkopf','шварцкоф':'Schwarzkopf',
+  'matrix':'Matrix','матрикс':'Matrix',
+  'kapous':'Kapous','kapus':'Kapous','капус':'Kapous','капус':'Kapous',
+  'loreal':'L’Oreal','lorealle':'L’Oreal','loreale':'L’Oreal',
+  'лореаль':'L’Oreal','лореал':'L’Oreal','лорэаль':'L’Oreal',
+  'ollin':'Ollin','оллин':'Ollin','олин':'Ollin',
+  'concept':'Concept','концепт':'Concept',
+  'londa':'Londa','лонда':'Londa',
+  'igora':'Igora','игора':'Igora',
+  'selective':'Selective','селектив':'Selective','селективе':'Selective',
+  'constant':'Constant Delight','констант':'Constant Delight'
 };
 
 /* убираем из куска то, что тоном быть не может: проценты, минуты, граммы, дни */
@@ -3289,7 +3336,10 @@ function formStock(id){
     '</div>' +
     '<div class="field"><label class="lab">Единица</label>' +
       '<select class="inp" id="st_unit">' + uopts + '</select></div>' +
-    '<div class="hintline">Единица — как удобнее считать: краска в тубах, оксид во флаконах, ' +
+    '<div class="hintline">Название можно продиктовать: пока говорите, под полем видно строку ' +
+    '«Запишется так» — числа станут цифрами, а марка встанет латиницей, как на тубе. ' +
+    'Готовый вид попадёт в поле, как только вы из него выйдете.<br>' +
+    'Единица — как удобнее считать: краска в тубах, оксид во флаконах, ' +
     'порошок в банках, фольга в рулонах, перчатки в упаковках. ' +
     'Если в названии краски написать тон — «Краска Estel 7.1», — отчёт покажет, какие тоны лежат без движения.</div>';
 
