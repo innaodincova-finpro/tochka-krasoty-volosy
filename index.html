@@ -225,21 +225,46 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 .nv.on{color:var(--stop)}
 
 /* ---------- шторка ---------- */
-.veil{position:fixed;inset:0;background:rgba(12,20,28,.5);opacity:0;pointer-events:none;
-      transition:opacity .18s ease;z-index:40}
+/* ---------- шторка ----------
+
+   Шторка выезжает снизу поверх кабинета, и кабинет в этот момент отъезжает
+   вглубь: уменьшается, скругляется по углам и притухает. Получается два
+   слоя друг за другом, а не два плоских экрана. Шторку можно тянуть пальцем:
+   вверх — во весь экран, вниз — закрыть. */
+.stage{position:fixed;inset:0;background:#05121F;z-index:0}
+.app{transform-origin:50% 0;
+     transition:transform .26s cubic-bezier(.32,.72,0,1), border-radius .26s ease, filter .26s ease}
+body.deep .app{transform:scale(.925) translateY(10px);border-radius:14px;
+               overflow:hidden;filter:brightness(.82) saturate(.9)}
+
+.veil{position:fixed;inset:0;background:rgba(6,16,26,.45);opacity:0;pointer-events:none;
+      transition:opacity .22s ease;z-index:40}
 .veil.on{opacity:1;pointer-events:auto}
+
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ground);
-       border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .22s ease;
-       max-height:92dvh;display:flex;flex-direction:column}
+       border-radius:18px 18px 0 0;transform:translateY(100%);
+       transition:transform .26s cubic-bezier(.32,.72,0,1), height .26s cubic-bezier(.32,.72,0,1);
+       height:auto;max-height:92dvh;display:flex;flex-direction:column;
+       box-shadow:0 -14px 40px rgba(4,14,24,.42), 0 -1px 0 rgba(255,255,255,.10) inset}
 .sheet.on{transform:translateY(0)}
+/* во весь экран — когда шторку подтянули вверх */
+.sheet.tall{height:92dvh}
+/* пока палец на шторке, она следует за ним без плавности */
+.sheet.drag{transition:none}
+
+/* полоска-ручка: за неё тянут, поэтому область касания шире самой полоски */
+.sh-grip{flex:none;padding:9px 0 3px;touch-action:none;cursor:grab}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto;
+      transition:background .15s ease,width .15s ease}
+.sheet.drag .grab{background:var(--mut);width:52px}
+
 .sh-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
-         padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+         padding:8px 16px 10px;border-bottom:1px solid var(--line);touch-action:none}
 .sh-title{font-size:16px;font-weight:600}
 .sh-x{background:none;border:none;color:var(--mut);font-size:20px;min-width:44px;min-height:44px}
-.sh-body{overflow-y:auto;padding:14px 16px;flex:1}
+.sh-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px;flex:1}
 .sh-foot{flex:none;padding:12px 16px calc(env(safe-area-inset-bottom) + 14px);
          border-top:1px solid var(--line);display:grid;gap:9px}
-.grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 0}
 
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 74px);transform:translate(-50%,-14px);z-index:60;
        background:var(--panel);color:var(--p-ink);font-size:13px;padding:11px 16px;border-radius:10px;
@@ -297,8 +322,8 @@ textarea.inp{min-height:120px;line-height:1.45;resize:vertical}
 
 <div class="veil" id="veil"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true">
-  <div class="grab"></div>
-  <div class="sh-head">
+  <div class="sh-grip" id="shGrip"><div class="grab"></div></div>
+  <div class="sh-head" id="shHead">
     <div class="sh-title" id="shTitle"></div>
     <button class="sh-x" id="shClose" aria-label="Закрыть">✕</button>
   </div>
@@ -876,24 +901,106 @@ function paintSaved(){
   el.textContent = SAVED_AT ? ('сохранено ' + pad(SAVED_AT.getHours()) + ':' + pad(SAVED_AT.getMinutes())) : '';
 }
 
-/* Ножницы с настоящего ярлыка. Рисуются в двух местах: на полоске
-   «поставьте иконку» и на образце иконки в разделе про неё. */
+/* Ножницы с настоящего ярлыка: те же координаты, что и в файле значка.
+   Лезвия сужаются к концам, поэтому это заливка, а не линия; кольца
+   рисуются обводкой, чтобы внутри осталось настоящее отверстие.
+   Надписи здесь нет — на полоске размером с ноготь её не прочитать. */
 function scissorsMark(px){
-  return '<svg viewBox="0 0 100 100" width="' + px + '" height="' + px + '" fill="none" ' +
-    'stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M30 64 L72 16"/><path d="M70 64 L28 16"/>' +
-    '<circle cx="30" cy="76" r="12"/><circle cx="70" cy="76" r="12"/></svg>';
+  return '<svg viewBox="27 12 46 46" width="' + px + '" height="' + px + '" ' +
+    'fill="currentColor" stroke="none">' +
+    '<path d="M43.47 37.28 L67.22 16.22 L68.78 17.78 L47.72 41.53 Z"/>' +
+    '<path d="M56.53 37.28 L32.78 16.22 L31.22 17.78 L52.28 41.53 Z"/>' +
+    '<circle cx="40" cy="45" r="6.45" fill="none" stroke="currentColor" stroke-width="4.3"/>' +
+    '<circle cx="60" cy="45" r="6.45" fill="none" stroke="currentColor" stroke-width="4.3"/>' +
+    '</svg>';
 }
 
-/* ================= шторка ================= */
+/* ================= шторка =================
+
+   Шторка ведёт себя как физический лист бумаги, который вытянули снизу.
+   За полоску-ручку и за заголовок её можно тащить пальцем: вниз — закрыть,
+   вверх — развернуть во весь экран. Пока палец на шторке, она идёт за ним
+   без плавности; отпустили — доезжает сама.
+
+   Кабинет под шторкой в это время отъезжает вглубь: уменьшается, скругляется
+   и притухает. Из-за этого видно, что это два слоя, а не два плоских экрана.
+   Тот же приём, что в «Картах» и «Музыке» на iPhone. */
 function openSheet(title, body, foot){
   $('shTitle').textContent = title;
   $('shBody').innerHTML = body;
   $('shFoot').innerHTML = foot || '';
-  $('sheet').classList.add('on'); $('veil').classList.add('on');
+  var sh = $('sheet');
+  sh.classList.remove('tall', 'drag');
+  sh.style.transform = '';
+  sh.classList.add('on');
+  $('veil').classList.add('on');
+  document.body.classList.add('deep');
+  watchSheetFields();
 }
+
+/* Перетаскивание шторки пальцем. */
+var DRAG = null;
+
+function sheetDrag(){
+  var sh = $('sheet');
+  if(!sh || sh.dataset.drag) return;
+  sh.dataset.drag = '1';
+
+  function start(e){
+    /* мышью тащить незачем, но на планшете стилус ведёт себя как палец */
+    DRAG = { y: e.clientY, t: Date.now(), moved: 0, tall: sh.classList.contains('tall') };
+    sh.classList.add('drag');
+    try{ e.target.setPointerCapture(e.pointerId); }catch(err){}
+  }
+
+  function move(e){
+    if(!DRAG) return;
+    var dy = e.clientY - DRAG.y;
+    DRAG.moved = dy;
+    /* вверх шторка идёт туго: выше своего края ей всё равно не подняться */
+    var shift = dy < 0 ? dy / 3 : dy;
+    sh.style.transform = 'translateY(' + shift + 'px)';
+    e.preventDefault();
+  }
+
+  function end(){
+    if(!DRAG) return;
+    var dy = DRAG.moved, ms = Date.now() - DRAG.t;
+    var fast = ms < 260 && Math.abs(dy) > 40;      /* короткий резкий смах */
+    sh.classList.remove('drag');
+    sh.style.transform = '';
+
+    if(dy > 110 || (fast && dy > 0)){
+      closeSheet();
+    } else if(dy < -60 || (fast && dy < 0)){
+      sh.classList.add('tall');                    /* подтянули вверх — во весь экран */
+    } else if(DRAG.tall && dy > 60){
+      sh.classList.remove('tall');                 /* опустили из полного в обычное */
+    }
+    DRAG = null;
+  }
+
+  ['shGrip', 'shHead'].forEach(function(id){
+    var el = $(id); if(!el) return;
+    el.addEventListener('pointerdown', start);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  });
+}
+/* Все поля с пометкой data-mode берутся под наблюдение разом: не нужно
+   помнить про каждое новое поле по отдельности. */
+function watchSheetFields(){
+  var list = document.querySelectorAll('#sheet [data-mode]');
+  for(var i = 0; i < list.length; i++) watchDictation(list[i]);
+}
+
 function closeSheet(){
   if(DICT_TIMER){ clearTimeout(DICT_TIMER); DICT_TIMER = null; }
+  var sh = $('sheet');
+  sh.classList.remove('tall', 'drag');
+  sh.style.transform = '';
+  document.body.classList.remove('deep');
   $('sheet').classList.remove('on'); $('veil').classList.remove('on');
 }
 
@@ -999,7 +1106,7 @@ function renderToday(){
 
   if(DEMO){
     h += '<div class="addbar demo">' +
-           '<div class="ab-ic" aria-hidden="true">' + scissorsMark(21) + '</div>' +
+           '<div class="ab-ic" aria-hidden="true">' + scissorsMark(27) + '</div>' +
            '<div><div class="ab-t">Это пример, чтобы посмотреть</div>' +
            '<div class="muted">Клиенты и записи придуманы. Нажимайте что угодно: ничего ' +
              'не сломается и никуда не отправится. Следующее открытие вернёт пример ' +
@@ -1007,7 +1114,7 @@ function renderToday(){
          '</div>';
   } else if(!DB.settings.installHidden){
     h += '<div class="addbar">' +
-           '<div class="ab-ic" aria-hidden="true">' + scissorsMark(21) + '</div>' +
+           '<div class="ab-ic" aria-hidden="true">' + scissorsMark(27) + '</div>' +
            '<div><div class="ab-t">Поставьте иконку на экран телефона</div>' +
            '<div class="muted">чтобы заходить одним касанием, а не искать ссылку</div></div>' +
            '<button class="ab-x" data-act="hideInstall" aria-label="Скрыть">✕</button>' +
@@ -1658,7 +1765,6 @@ function formNote(id, preClient){
   if(id) foot += '<button class="btn" data-act="delNote" data-id="' + id + '">Удалить</button>';
   foot += '<button class="btn ghost" data-act="closeSheet">Отмена</button>';
   openSheet(id ? 'Заметка' : 'Новая заметка', h, foot);
-  watchDictation($('story'));
 }
 
 /* Показ того, что кабинет расслышал в надиктованном. Ничего не сохраняет:
@@ -1829,11 +1935,14 @@ function pageQuality(){
 function pageInstall(){
   var h =
     '<div style="display:flex;flex-direction:column;align-items:center;gap:9px;margin-bottom:16px">' +
-      '<div style="width:88px;height:88px;border-radius:21px;background:var(--panel);display:flex;' +
-        'flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--p-ink)">' +
-        scissorsMark(36) +
-        '<div style="font-size:9.5px;font-weight:700;line-height:1.15;letter-spacing:.02em;' +
-          'text-align:center">ТОЧКА<br>КРАСОТЫ</div></div>' +
+      /* образец повторяет настоящий ярлык: золотые ножницы на тёмно-синем
+         и надпись в две строки тем же золотом */
+      '<div style="width:88px;height:88px;border-radius:21px;display:flex;' +
+        'flex-direction:column;align-items:center;justify-content:center;gap:1px;' +
+        'background:linear-gradient(160deg,#33587D,#22466A 52%,#152F4C);color:#DDB77C">' +
+        scissorsMark(42) +
+        '<div style="font-size:9px;font-weight:700;line-height:1.2;letter-spacing:.04em;' +
+          'text-align:center;margin-top:1px">ТОЧКА<br>КРАСОТЫ</div></div>' +
       '<div style="font-size:13px">Точка красоты</div>' +
       '<div class="muted" style="text-align:center">Так кабинет выглядит на экране телефона. Открывается на весь экран, без адресной строки браузера.</div>' +
     '</div>' +
@@ -2762,11 +2871,10 @@ function editCard(id){
         '<option value="1"' + (a.redo ? ' selected' : '') + '>да, переделывали</option></select></div>' +
     '</div>' +
     '<div class="field"><label class="lab">Заметка</label>' +
-      '<input class="inp" id="k_note" value="' + esc(a.note || '') + '"></div>';
+      '<input class="inp" id="k_note" data-mode="text" value="' + esc(a.note || '') + '"></div>';
   openSheet('Что делали', h,
     '<button class="btn primary" data-act="saveCard" data-id="' + a.id + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
-  watchDictation($('story'));
   markHints();
 }
 
@@ -2797,7 +2905,7 @@ function formAppt(preClient){
       '<div class="field"><label class="lab">Дата</label><input class="inp" id="f_date" type="date" value="' + today() + '"></div>' +
       '<div class="field"><label class="lab">Время</label><input class="inp" id="f_time" type="time" value="10:00"></div>' +
     '</div>' +
-    '<div class="field"><label class="lab">Заметка</label><input class="inp" id="f_note" placeholder="необязательно"></div>' +
+    '<div class="field"><label class="lab">Заметка</label><input class="inp" id="f_note" data-mode="text" placeholder="необязательно"></div>' +
     '<div class="hintline">Длительность и стоимость подставятся из процедуры — их можно поправить потом в записи. ' +
     'Сложное окрашивание идёт три-четыре часа: если запись наложится на предыдущую, кабинет предупредит.</div>';
   openSheet('Новая запись', h,
@@ -2858,11 +2966,10 @@ function formClient(id){
     '<div class="hintline">Аллергопроба ставится перед первым окрашиванием, за 48 часов. ' +
     'Пока даты нет, кабинет напомнит о ней в «Нужно отметить».</div>' +
     '<div class="field" style="margin-top:12px"><label class="lab">Заметка</label>' +
-      '<input class="inp" id="cl_note" value="' + esc(c.note || '') + '" placeholder="седина, пористость, что не любит"></div>';
+      '<input class="inp" id="cl_note" data-mode="text" value="' + esc(c.note || '') + '" placeholder="седина, пористость, что не любит"></div>';
   openSheet(id ? 'Изменить клиента' : 'Новый клиент', h,
     '<button class="btn primary" data-act="saveClient" data-id="' + (id || '') + '">Сохранить</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
-  watchDictation($('cl_phone'));
 }
 
 function formAllergy(id){
@@ -2904,7 +3011,7 @@ function formClean(){
       '<div class="field"><label class="lab">Количество</label><input class="inp" id="cn_count" inputmode="numeric" value="3"></div>' +
     '</div>' +
     '<div class="field"><label class="lab">Заметка</label>' +
-      '<input class="inp" id="cn_note" placeholder="средство, время выдержки"></div>';
+      '<input class="inp" id="cn_note" data-mode="text" placeholder="средство, время выдержки"></div>';
   openSheet('Запись о дезинфекции', h,
     '<button class="btn primary" data-act="saveClean">Записать</button>' +
     '<button class="btn ghost" data-act="closeSheet">Отмена</button>');
@@ -3612,6 +3719,7 @@ document.addEventListener('keydown', function(e){
 
 load();
 render();
+sheetDrag();
 setInterval(function(){ if(TAB === 'today') render(); }, 60000);
 
 /* Без интернета кабинет тоже должен открываться: у мастера на дому связь
